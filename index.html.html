@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js"></script>
+<style>
+:root {
+  --bg:#0f0f0f;--bg2:#161616;--bg3:#1e1e1e;--bg4:#252525;
+  --border:#2a2a2a;--border2:#333;
+  --text:#e8e4dc;--text2:#8a8580;--text3:#555;
+  --accent:#c8b87a;--accent2:#8fb89a;--accent3:#7a9cc8;--danger:#c87a7a;
+  --radius:10px;
+  --font-display:'Fraunces',serif;--font-body:'DM Sans',sans-serif;--font-mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;}
+
+#setup-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.setup-card{width:100%;max-width:500px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;}
+.setup-logo{font-family:var(--font-display);font-size:28px;font-weight:300;letter-spacing:-0.5px;margin-bottom:6px;}
+.setup-logo span{color:var(--accent);font-style:italic;}
+.setup-sub{font-size:13px;color:var(--text2);margin-bottom:1.5rem;line-height:1.5;}
+.setup-steps{display:flex;margin-bottom:1.5rem;border-bottom:0.5px solid var(--border2);}
+.setup-step-tab{flex:1;padding:8px;text-align:center;font-size:12px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+.setup-step-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.setup-page{display:none;}.setup-page.active{display:block;}
+.field-group{margin-bottom:1rem;}
+.field-label{font-size:11px;font-weight:500;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;display:block;}
+.field-input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius);padding:10px 14px;font-size:13px;font-family:var(--font-mono);color:var(--text);outline:none;transition:border-color .15s;}
+.field-input.text-font{font-family:var(--font-body);}
+.field-input:focus{border-color:var(--accent);}
+.field-input::placeholder{color:var(--text3);}
+.field-textarea{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius);padding:10px 14px;font-size:12px;font-family:var(--font-body);color:var(--text);outline:none;resize:vertical;min-height:90px;line-height:1.5;transition:border-color .15s;}
+.field-textarea:focus{border-color:var(--accent);}
+.field-textarea::placeholder{color:var(--text3);}
+.field-hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.5;}
+.setup-nav{display:flex;gap:8px;margin-top:1.5rem;}
+.setup-nav-btn{flex:1;padding:10px;border-radius:var(--radius);font-family:var(--font-body);font-size:13px;cursor:pointer;transition:all .15s;}
+.setup-nav-btn.secondary{background:transparent;border:0.5px solid var(--border2);color:var(--text2);}
+.setup-nav-btn.secondary:hover{color:var(--text);}
+.setup-nav-btn.primary{background:var(--accent);border:none;color:#0f0f0f;font-weight:500;}
+.setup-nav-btn.primary:hover{opacity:.88;}
+.setup-note{margin-top:1rem;font-size:11px;color:var(--text3);line-height:1.6;text-align:center;}
+
+#app-screen{display:none;height:100vh;flex-direction:column;}
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--bg2);border-bottom:0.5px solid var(--border);flex-shrink:0;}
+.nav-logo{font-family:var(--font-display);font-size:18px;font-weight:300;letter-spacing:-.3px;}
+.nav-logo span{color:var(--accent);font-style:italic;}
+.nav-tabs{display:flex;gap:4px;}
+.nav-tab{padding:6px 14px;font-size:12px;border-radius:6px;border:none;background:transparent;color:var(--text2);cursor:pointer;transition:all .12s;font-family:var(--font-body);}
+.nav-tab:hover{color:var(--text);background:var(--bg3);}
+.nav-tab.active{background:var(--bg3);color:var(--text);border:0.5px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.user-pill{font-size:11px;color:var(--text2);background:var(--bg3);border:0.5px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;transition:all .12s;}
+.user-pill:hover{color:var(--accent);border-color:var(--accent);}
+.signout-btn{font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:var(--font-body);}
+.signout-btn:hover{color:var(--danger);}
+.main-layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:240px;min-width:240px;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-section{padding:14px 14px 8px;}
+.sidebar-section-label{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+.sidebar-btn{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:transparent;border:none;border-radius:8px;color:var(--text2);font-size:13px;font-family:var(--font-body);cursor:pointer;text-align:left;transition:all .12s;margin-bottom:2px;}
+.sidebar-btn:hover{background:var(--bg3);color:var(--text);}
+.sidebar-btn svg{width:14px;height:14px;flex-shrink:0;opacity:.7;}
+.sidebar-divider{height:0.5px;background:var(--border);margin:8px 14px;}
+.chat-history{flex:1;overflow-y:auto;padding:0 8px 8px;}
+.hist-label{font-size:10px;color:var(--text3);padding:8px 6px 4px;letter-spacing:.06em;text-transform:uppercase;}
+.hist-item{padding:7px 8px;font-size:12px;border-radius:6px;cursor:pointer;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all .1s;}
+.hist-item:hover{background:var(--bg3);color:var(--text);}
+.content-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.panel{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+
+.chat-messages{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:16px;}
+.msg-row{display:flex;gap:10px;align-items:flex-start;}
+.msg-row.user{flex-direction:row-reverse;}
+.avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;font-family:var(--font-mono);}
+.avatar.ai{background:var(--bg4);color:var(--accent);border:0.5px solid var(--border2);}
+.avatar.user{background:var(--bg4);color:var(--accent3);border:0.5px solid var(--border2);}
+.bubble{max-width:74%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.6;white-space:pre-wrap;}
+.msg-row.ai .bubble{background:var(--bg3);color:var(--text);border-bottom-left-radius:3px;border:0.5px solid var(--border);}
+.msg-row.user .bubble{background:var(--bg4);color:var(--text);border-bottom-right-radius:3px;border:0.5px solid var(--border2);}
+.typing-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text3);margin:0 2px;animation:bounce 1s infinite;}
+.typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+.chat-input-area{padding:14px 20px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;gap:10px;align-items:flex-end;}
+.chat-input{flex:1;resize:none;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;padding:10px 14px;font-size:13px;font-family:var(--font-body);color:var(--text);outline:none;min-height:42px;max-height:120px;line-height:1.5;transition:border-color .15s;}
+.chat-input:focus{border-color:var(--accent);}
+.chat-input::placeholder{color:var(--text3);}
+.send-btn{width:38px;height:38px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s;}
+.send-btn:hover{opacity:.85;}
+.send-btn svg{width:14px;height:14px;fill:#0f0f0f;}
+.quick-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.chip{padding:5px 12px;border-radius:20px;font-size:11px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .12s;font-family:var(--font-body);}
+.chip:hover{background:var(--bg4);color:var(--accent);border-color:var(--accent);}
+
+.panel-header{padding:16px 24px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg2);}
+.panel-title{font-family:var(--font-display);font-size:18px;font-weight:300;color:var(--text);}
+.panel-action-btn{padding:7px 14px;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all .12s;}
+.panel-action-btn:hover{color:var(--text);border-color:var(--accent);}
+.panel-action-btn.primary{background:var(--accent);color:#0f0f0f;border-color:var(--accent);font-weight:500;}
+.panel-action-btn.primary:hover{opacity:.88;}
+
+.email-list{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;}
+.email-item{padding:12px 16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;cursor:pointer;transition:all .12s;}
+.email-item:hover{border-color:var(--border2);background:var(--bg3);}
+.email-item.unread{border-left:2px solid var(--accent);}
+.email-from{font-size:12px;font-weight:500;color:var(--text);margin-bottom:3px;}
+.email-subject{font-size:12px;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.email-preview{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.email-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.email-time{font-size:11px;color:var(--text3);font-family:var(--font-mono);}
+.email-detail{flex:1;overflow-y:auto;padding:20px 24px;display:none;flex-direction:column;gap:14px;}
+.email-detail.visible{display:flex;}
+.email-detail-header{padding-bottom:14px;border-bottom:0.5px solid var(--border);}
+.email-detail-subject{font-family:var(--font-display);font-size:20px;font-weight:300;color:var(--text);margin-bottom:8px;}
+.email-detail-from{font-size:12px;color:var(--text2);}
+.email-body{font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;flex:1;}
+.draft-box{background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;padding:16px;}
+.draft-label{font-size:10px;font-weight:500;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;}
+.draft-content{font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;margin-bottom:12px;min-height:60px;outline:none;}
+.draft-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);background:none;border:none;cursor:pointer;font-family:var(--font-body);padding:0 0 10px;}
+.back-btn:hover{color:var(--text);}
+
+.calendar-grid{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:8px;}
+.cal-day-header{font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:8px 0 4px;}
+.cal-event{padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-left:2px solid var(--accent2);border-radius:8px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .12s;}
+.cal-event:hover{background:var(--bg3);}
+.cal-event-time{font-size:11px;color:var(--text2);font-family:var(--font-mono);min-width:80px;}
+.cal-event-title{font-size:13px;color:var(--text);flex:1;}
+.cal-event-attendees{font-size:11px;color:var(--text3);}
+.new-event-form{padding:14px 20px;border-top:0.5px solid var(--border);background:var(--bg2);}
+.new-event-row{display:flex;gap:8px;flex-wrap:wrap;}
+.event-input{flex:1;min-width:120px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--font-body);color:var(--text);outline:none;}
+.event-input:focus{border-color:var(--accent2);}
+.event-input::placeholder{color:var(--text3);}
+
+.settings-scroll{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:18px;}
+.settings-section{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:18px 20px;}
+.settings-section-title{font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;}
+.settings-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.settings-field{display:flex;flex-direction:column;gap:5px;}
+.settings-field.full{grid-column:1 / -1;}
+.settings-label{font-size:11px;color:var(--text2);letter-spacing:.04em;}
+.settings-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;font-family:var(--font-body);color:var(--text);outline:none;width:100%;transition:border-color .15s;}
+.settings-input:focus{border-color:var(--accent);}
+.settings-input::placeholder{color:var(--text3);}
+.settings-textarea{background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:12px;font-family:var(--font-body);color:var(--text);outline:none;width:100%;resize:vertical;min-height:100px;line-height:1.6;transition:border-color .15s;}
+.settings-textarea:focus{border-color:var(--accent);}
+.settings-textarea::placeholder{color:var(--text3);}
+.settings-hint{font-size:11px;color:var(--text3);line-height:1.5;margin-top:4px;}
+.style-status{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text2);}
+.style-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.style-dot.active{background:var(--accent2);}
+.analyze-btn{padding:8px 16px;background:transparent;border:0.5px solid var(--accent);border-radius:8px;font-family:var(--font-body);font-size:12px;color:var(--accent);cursor:pointer;transition:all .15s;margin-top:10px;}
+.analyze-btn:hover{background:var(--accent);color:#0f0f0f;}
+.save-settings-btn{padding:9px 20px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-body);font-size:13px;font-weight:500;color:#0f0f0f;cursor:pointer;transition:opacity .15s;}
+.save-settings-btn:hover{opacity:.88;}
+
+.loading-state{display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:12px;color:var(--text2);font-size:13px;}
+.spinner{width:20px;height:20px;border:1.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg4);border:0.5px solid var(--border2);border-radius:10px;padding:10px 16px;font-size:12px;color:var(--text);z-index:1000;opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast.show{opacity:1;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+@media(max-width:640px){.sidebar{display:none;}.nav-tab{padding:6px 9px;font-size:11px;}}
+
+/* Expense styles */
+.expense-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+.expense-upload-zone{border:1.5px dashed var(--border2);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg2);}
+.expense-upload-zone:hover{border-color:var(--accent);background:var(--bg3);}
+.expense-upload-zone.dragover{border-color:var(--accent);background:var(--bg3);}
+.upload-icon{width:36px;height:36px;margin:0 auto 10px;opacity:.4;}
+.upload-title{font-size:14px;color:var(--text2);margin-bottom:4px;}
+.upload-sub{font-size:12px;color:var(--text3);}
+.receipt-preview{display:none;flex-direction:column;gap:14px;}
+.receipt-preview.visible{display:flex;}
+.receipt-img-wrap{position:relative;border-radius:10px;overflow:hidden;background:var(--bg3);border:0.5px solid var(--border2);max-height:220px;display:flex;align-items:center;justify-content:center;}
+.receipt-img-wrap img{max-width:100%;max-height:220px;object-fit:contain;}
+.receipt-img-wrap .remove-img{position:absolute;top:8px;right:8px;background:var(--bg4);border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text2);cursor:pointer;}
+.receipt-img-wrap .remove-img:hover{color:var(--danger);}
+.extraction-card{background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:16px;}
+.extraction-title{font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.extraction-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.extraction-field{display:flex;flex-direction:column;gap:4px;}
+.extraction-field.full{grid-column:1/-1;}
+.extraction-label{font-size:10px;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;}
+.extraction-input{background:var(--bg4);border:0.5px solid var(--border2);border-radius:7px;padding:7px 10px;font-size:12px;font-family:var(--font-body);color:var(--text);outline:none;width:100%;transition:border-color .15s;}
+.extraction-input:focus{border-color:var(--accent);}
+.extraction-select{background:var(--bg4);border:0.5px solid var(--border2);border-radius:7px;padding:7px 10px;font-size:12px;font-family:var(--font-body);color:var(--text);outline:none;width:100%;}
+.confirm-actions{display:flex;gap:8px;padding-top:4px;}
+.exp-summary-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;border-bottom:0.5px solid var(--border);}
+.exp-summary-row:last-child{border-bottom:none;font-weight:500;color:var(--accent2);}
+.exp-summary-label{color:var(--text2);}
+.exp-log{display:flex;flex-direction:column;gap:6px;}
+.exp-log-item{padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;display:flex;align-items:center;gap:12px;}
+.exp-log-date{font-size:11px;color:var(--text3);font-family:var(--font-mono);min-width:70px;}
+.exp-log-desc{font-size:13px;color:var(--text);flex:1;}
+.exp-log-amount{font-size:13px;color:var(--accent2);font-family:var(--font-mono);}
+.exp-log-cat{font-size:11px;color:var(--text3);background:var(--bg3);padding:2px 8px;border-radius:20px;}
+.mileage-form{background:var(--bg3);border:0.5px solid var(--border2);border-radius:12px;padding:16px;display:none;}
+.mileage-form.visible{display:block;}
+.exp-tabs{display:flex;gap:4px;margin-bottom:16px;}
+.exp-tab{flex:1;padding:8px;text-align:center;font-size:12px;border-radius:8px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--font-body);transition:all .12s;}
+.exp-tab.active{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+
+/* PM Tools — RACI + Charter */
+.tools-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+.tools-tabs{display:flex;gap:4px;margin-bottom:4px;}
+.tools-tab{flex:1;padding:9px;text-align:center;font-size:12px;border-radius:8px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--font-body);transition:all .12s;}
+.tools-tab.active{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+.tool-view{display:none;flex-direction:column;gap:14px;}
+.tool-view.active{display:flex;}
+.tool-section{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:18px 20px;}
+.tool-section-title{font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;}
+.tool-input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.tool-input-row.single{grid-template-columns:1fr;}
+.tool-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.tool-input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;font-family:var(--font-body);color:var(--text);outline:none;transition:border-color .15s;}
+.tool-input:focus{border-color:var(--accent);}
+.tool-input::placeholder{color:var(--text3);}
+.tool-textarea{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:12px;font-family:var(--font-body);color:var(--text);outline:none;resize:vertical;min-height:80px;line-height:1.55;transition:border-color .15s;}
+.tool-textarea:focus{border-color:var(--accent);}
+.tool-textarea::placeholder{color:var(--text3);}
+.tool-generate-btn{padding:10px 20px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-body);font-size:13px;font-weight:500;color:#0f0f0f;cursor:pointer;transition:opacity .15s;align-self:flex-start;}
+.tool-generate-btn:hover{opacity:.88;}
+.tool-generate-btn:disabled{opacity:.5;cursor:not-allowed;}
+/* RACI table */
+.raci-wrap{overflow-x:auto;border-radius:10px;border:0.5px solid var(--border2);}
+.raci-table{width:100%;border-collapse:collapse;font-size:12px;}
+.raci-table th{background:var(--bg4);color:var(--text2);font-weight:500;padding:8px 12px;text-align:left;border-bottom:0.5px solid var(--border2);white-space:nowrap;}
+.raci-table th.role-col{text-align:center;min-width:70px;}
+.raci-table td{padding:8px 12px;border-bottom:0.5px solid var(--border);color:var(--text);vertical-align:middle;}
+.raci-table tr:last-child td{border-bottom:none;}
+.raci-cell{text-align:center;}
+.raci-badge{display:inline-block;width:26px;height:26px;border-radius:6px;font-size:11px;font-weight:500;line-height:26px;cursor:pointer;transition:all .12s;user-select:none;}
+.raci-R{background:#1D9E7520;color:#5DCAA5;border:0.5px solid #1D9E75;}
+.raci-A{background:#BA751720;color:#FAC775;border:0.5px solid #BA7517;}
+.raci-C{background:#378ADD20;color:#85B7EB;border:0.5px solid #378ADD;}
+.raci-I{background:#55555520;color:#8a8580;border:0.5px solid #555;}
+.raci-empty{background:transparent;color:var(--text3);border:0.5px dashed var(--border2);}
+.raci-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text2);margin-top:10px;}
+.raci-legend span{display:flex;align-items:center;gap:5px;}
+.raci-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+/* Charter */
+.charter-output{background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;padding:18px;font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;min-height:200px;}
+.charter-section-block{margin-bottom:14px;padding-bottom:14px;border-bottom:0.5px solid var(--border);}
+.charter-section-block:last-child{border-bottom:none;margin-bottom:0;}
+.charter-section-label{font-size:10px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.charter-section-content{font-size:13px;color:var(--text);line-height:1.65;outline:none;width:100%;background:transparent;border:none;resize:vertical;min-height:50px;font-family:var(--font-body);}
+.charter-section-content:focus{outline:none;}
+.status-bar{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:8px;padding:6px 0;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.status-dot.generating{background:var(--accent);animation:pulse 1s infinite;}
+.status-dot.done{background:var(--accent2);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">PM <span>Assistant</span></div>
+    <div class="setup-sub">Set up once — remembered forever. Three quick steps.</div>
+    <div class="setup-steps">
+      <div class="setup-step-tab active" id="tab-1" onclick="goSetupStep(1)">1. Credentials</div>
+      <div class="setup-step-tab" id="tab-2" onclick="goSetupStep(2)">2. Your profile</div>
+      <div class="setup-step-tab" id="tab-3" onclick="goSetupStep(3)">3. Your style</div>
+    </div>
+
+    <div class="setup-page active" id="setup-page-1">
+      <div class="field-group">
+        <label class="field-label">Anthropic API Key</label>
+        <input class="field-input" type="password" id="inp-anthropic" placeholder="sk-ant-..." />
+        <div class="field-hint">Get this from console.anthropic.com → API Keys</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Azure Client ID (Application ID)</label>
+        <input class="field-input text-font" type="text" id="inp-client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Azure Tenant ID (Directory ID)</label>
+        <input class="field-input text-font" type="text" id="inp-tenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      </div>
+      <div class="setup-nav">
+        <button class="setup-nav-btn primary" id="msal-signin-btn" onclick="msalSignIn()">Sign in with Microsoft 365 →</button>
+      </div>
+      <div id="msal-status" style="display:none;margin-top:12px;font-size:12px;color:var(--text2);text-align:center;"></div>
+      <div class="setup-note">Your Anthropic key is stored only in your browser. Microsoft sign-in uses OAuth — no passwords stored anywhere.</div>
+    </div>
+
+    <div class="setup-page" id="setup-page-2">
+      <div class="field-group">
+        <label class="field-label">Your full name</label>
+        <input class="field-input text-font" type="text" id="inp-name" placeholder="e.g. Sarah Mitchell" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Job title</label>
+        <input class="field-input text-font" type="text" id="inp-jobtitle" placeholder="e.g. Senior Project Manager" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Company / organization</label>
+        <input class="field-input text-font" type="text" id="inp-company" placeholder="e.g. Acme Corp" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Current projects (comma separated)</label>
+        <input class="field-input text-font" type="text" id="inp-projects" placeholder="e.g. ERP Migration, Q3 Launch, Compliance Audit" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Key stakeholders &amp; team members</label>
+        <textarea class="field-textarea" id="inp-stakeholders" placeholder="e.g. John (CEO, project sponsor), Maria (Tech Lead), Client contact: Apex Inc — David Chen"></textarea>
+        <div class="field-hint">This helps the assistant personalize emails and prep for the right people.</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">PM methodology / process notes</label>
+        <textarea class="field-textarea" id="inp-pmcontext" placeholder="e.g. We follow PMBOK 7. 2-week sprints. RACI for all projects. Escalation: Team Lead → PM → Sponsor."></textarea>
+      </div>
+      <div class="setup-nav">
+        <button class="setup-nav-btn secondary" onclick="goSetupStep(1)">← Back</button>
+        <button class="setup-nav-btn primary" onclick="goSetupStep(3)">Next — Your style →</button>
+      </div>
+    </div>
+
+    <div class="setup-page" id="setup-page-3">
+      <div class="field-group">
+        <label class="field-label">Paste 2–3 emails you've written</label>
+        <textarea class="field-textarea" id="inp-style-samples" style="min-height:130px;" placeholder="Paste real emails you've sent. The assistant will analyze your tone, sentence patterns, formality level, and sign-off style — then match your voice in every draft it writes."></textarea>
+        <div class="field-hint">More examples = better style matching. You can add more anytime in the Profile tab.</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Preferred email sign-off</label>
+        <input class="field-input text-font" type="text" id="inp-signoff" placeholder="e.g. Best regards, / Thanks, / Cheers," />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Tone preference</label>
+        <select class="field-input text-font" id="inp-tone">
+          <option value="professional">Professional — formal and precise</option>
+          <option value="friendly-professional">Friendly professional — warm but polished</option>
+          <option value="direct">Direct — brief, no fluff</option>
+          <option value="collaborative">Collaborative — inclusive and team-oriented</option>
+        </select>
+      </div>
+      <div class="setup-nav">
+        <button class="setup-nav-btn secondary" onclick="goSetupStep(2)">← Back</button>
+        <button class="setup-nav-btn primary" onclick="finishSetup()">Launch assistant →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="topnav">
+    <div class="nav-logo">PM <span>Assistant</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchPanel('chat',this)">Chat</button>
+      <button class="nav-tab" onclick="switchPanel('email',this)">Inbox</button>
+      <button class="nav-tab" onclick="switchPanel('calendar',this)">Calendar</button>
+      <button class="nav-tab" onclick="switchPanel('expenses',this)">Expenses</button>
+      <button class="nav-tab" onclick="switchPanel('tools',this)">PM Tools</button>
+      <button class="nav-tab" onclick="switchPanel('settings',this)">Profile</button>
+    </div>
+    <div class="nav-right">
+      <div class="user-pill" id="user-pill" onclick="switchPanel('settings',document.querySelectorAll('.nav-tab')[3]);document.querySelectorAll('.nav-tab').forEach((t,i)=>{t.classList.toggle('active',i===3)})">Me</div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Quick actions</div>
+        <button class="sidebar-btn" onclick="quickAction('Summarize my unread emails and tell me what needs my attention today.')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Summarize inbox
+        </button>
+        <button class="sidebar-btn" onclick="quickAction('What does my calendar look like today and tomorrow? Give me a rundown and help me prepare for each meeting.')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Today's schedule
+        </button>
+        <button class="sidebar-btn" onclick="quickAction('Help me draft a project status update email for my stakeholders. Ask me what to include.')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Status update
+        </button>
+        <button class="sidebar-btn" onclick="quickAction('Help me create a new calendar event. Ask me for the details.')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          New meeting
+        </button>
+        <button class="sidebar-btn" onclick="quickAction('Help me write or update a project risk log. Ask me about current risks.')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Risk log
+        </button>
+        <button class="sidebar-btn" onclick="quickAction('Help me plan and prioritize my day based on my emails and calendar.')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Plan my day
+        </button>
+        <button class="sidebar-btn" onclick="switchPanel('expenses',document.querySelectorAll('.nav-tab')[3]);document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',i===3))">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          Log expense
+        </button>
+        <button class="sidebar-btn" onclick="switchPanel('tools',document.querySelectorAll('.nav-tab')[4]);document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',i===4));showToolsTab('raci')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          RACI matrix
+        </button>
+        <button class="sidebar-btn" onclick="switchPanel('tools',document.querySelectorAll('.nav-tab')[4]);document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',i===4));showToolsTab('charter')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Project charter
+        </button>
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="chat-history" id="chat-history-list">
+        <div class="hist-label">Recent chats</div>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div class="panel active" id="panel-chat">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="chat-input" placeholder="Ask anything — emails, calendar, project tasks…" rows="1"></textarea>
+          <button class="send-btn" onclick="sendChat()"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-email">
+        <div class="panel-header">
+          <div class="panel-title">Inbox</div>
+          <div style="display:flex;gap:8px;">
+            <button class="panel-action-btn" onclick="loadEmails()">Refresh</button>
+            <button class="panel-action-btn primary" onclick="quickAction('Draft a new email from scratch in my writing style. Ask me who to send it to and what to say.')">Compose</button>
+          </div>
+        </div>
+        <div style="display:flex;flex:1;overflow:hidden;">
+          <div class="email-list" id="email-list"><div class="loading-state"><div class="spinner"></div>Loading…</div></div>
+          <div class="email-detail" id="email-detail">
+            <button class="back-btn" onclick="closeEmailDetail()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              Back to inbox
+            </button>
+            <div class="email-detail-header">
+              <div class="email-detail-subject" id="detail-subject"></div>
+              <div class="email-detail-from" id="detail-from"></div>
+            </div>
+            <div class="email-body" id="detail-body"></div>
+            <div class="draft-box" id="draft-box" style="display:none;">
+              <div class="draft-label" id="draft-label">AI Draft Reply</div>
+              <div class="draft-content" id="draft-content" contenteditable="true"></div>
+              <div class="draft-actions">
+                <button class="panel-action-btn primary" onclick="sendDraftReply()">Send reply</button>
+                <button class="panel-action-btn" onclick="draftReply()">Regenerate</button>
+                <button class="panel-action-btn" onclick="document.getElementById('draft-box').style.display='none'">Dismiss</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="panel-action-btn primary" onclick="draftReply()">Draft reply with AI</button>
+              <button class="panel-action-btn" onclick="summarizeEmail()">Summarize</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-calendar">
+        <div class="panel-header">
+          <div class="panel-title">Calendar</div>
+          <button class="panel-action-btn" onclick="loadCalendar()">Refresh</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"><div class="loading-state"><div class="spinner"></div>Loading…</div></div>
+        <div class="new-event-form">
+          <div style="font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Quick add event</div>
+          <div class="new-event-row">
+            <input class="event-input" id="ev-title" placeholder="Event title" style="flex:2;" />
+            <input class="event-input" id="ev-date" type="date" />
+            <input class="event-input" id="ev-time" type="time" />
+            <input class="event-input" id="ev-duration" placeholder="Duration (min)" style="max-width:130px;" />
+            <button class="panel-action-btn primary" onclick="createEvent()">Add to calendar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expenses Panel -->
+      <div class="panel" id="panel-expenses">
+        <div class="panel-header">
+          <div class="panel-title">Expenses</div>
+          <div style="display:flex;gap:8px;">
+            <button class="panel-action-btn" onclick="toggleMileageForm()">+ Mileage</button>
+            <button class="panel-action-btn primary" onclick="resetExpenseForm()">+ New receipt</button>
+          </div>
+        </div>
+        <div class="expense-body">
+          <div class="exp-tabs">
+            <button class="exp-tab active" id="exptab-scan" onclick="showExpTab('scan')">Scan receipt</button>
+            <button class="exp-tab" id="exptab-log" onclick="showExpTab('log')">Recent entries</button>
+          </div>
+          <div id="exp-scan-view">
+            <div class="mileage-form" id="mileage-form">
+              <div style="font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;">Log mileage</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Date</div><input class="extraction-input" type="date" id="mil-date" /></div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Kilometres</div><input class="extraction-input" type="number" id="mil-km" placeholder="0" /></div>
+                <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Rate ($/km)</div><input class="extraction-input" type="number" id="mil-rate" value="0.72" step="0.01" /></div>
+              </div>
+              <div style="margin-bottom:12px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Description / purpose</div><input class="extraction-input" id="mil-desc" placeholder="e.g. Client visit — Apex Inc." style="width:100%;" /></div>
+              <button class="panel-action-btn primary" onclick="saveMileage()">Save mileage entry</button>
+            </div>
+            <div class="expense-upload-zone" id="upload-zone" onclick="document.getElementById('receipt-file-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+              <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <div class="upload-title">Upload or drag a receipt photo</div>
+              <div class="upload-sub">JPG, PNG — AI will extract all details automatically</div>
+              <input type="file" id="receipt-file-input" accept="image/*" style="display:none;" onchange="handleReceiptFile(event)" />
+            </div>
+            <div class="receipt-preview" id="receipt-preview">
+              <div class="receipt-img-wrap" id="receipt-img-wrap">
+                <img id="receipt-img" src="" alt="Receipt" />
+                <span class="remove-img" onclick="resetExpenseForm()">Remove</span>
+              </div>
+              <div class="extraction-card" id="extraction-card">
+                <div class="extraction-title"><span id="extraction-status">Extracting receipt details…</span></div>
+                <div class="extraction-grid">
+                  <div class="extraction-field full"><div class="extraction-label">Description / merchant</div><input class="extraction-input" id="ex-desc" placeholder="Extracting…" /></div>
+                  <div class="extraction-field"><div class="extraction-label">Date</div><input class="extraction-input" type="date" id="ex-date" /></div>
+                  <div class="extraction-field"><div class="extraction-label">Expense type</div>
+                    <select class="extraction-select" id="ex-category">
+                      <option>Business meals</option><option>Travel &amp; transport</option><option>Software &amp; subscriptions</option><option>Office supplies</option><option>Client entertainment</option><option>Other</option>
+                    </select>
+                  </div>
+                  <div class="extraction-field"><div class="extraction-label">Subtotal before HST ($)</div><input class="extraction-input" type="number" id="ex-subtotal" step="0.01" placeholder="0.00" oninput="recalcHST()" /></div>
+                  <div class="extraction-field"><div class="extraction-label">HST ($)</div><input class="extraction-input" type="number" id="ex-hst" step="0.01" placeholder="0.00" oninput="recalcTotal()" /></div>
+                  <div class="extraction-field"><div class="extraction-label">Fee on expenses ($)</div><input class="extraction-input" type="number" id="ex-fee" step="0.01" placeholder="0.00" /></div>
+                  <div class="extraction-field"><div class="extraction-label">Total incl. tax ($)</div><input class="extraction-input" type="number" id="ex-total" step="0.01" placeholder="0.00" /></div>
+                  <div class="extraction-field full"><div class="extraction-label">Notes</div><input class="extraction-input" id="ex-notes" placeholder="Optional notes" /></div>
+                  <div class="extraction-field full"><div class="extraction-label">Identification No.</div><input class="extraction-input" id="ex-idno" placeholder="Auto-assigned if blank" /></div>
+                </div>
+                <div style="margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border);">
+                  <div style="font-size:11px;font-weight:500;color:var(--text2);margin-bottom:10px;">Review before saving</div>
+                  <div id="exp-summary"></div>
+                </div>
+                <div class="confirm-actions" style="margin-top:14px;">
+                  <button class="panel-action-btn primary" id="save-expense-btn" onclick="saveExpense()" style="display:none;">Save to Excel &amp; OneDrive</button>
+                  <button class="panel-action-btn" onclick="resetExpenseForm()">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="exp-log-view" style="display:none;">
+            <div class="exp-log" id="exp-log-list">
+              <div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">No entries logged this session</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PM Tools Panel -->
+      <div class="panel" id="panel-tools">
+        <div class="panel-header">
+          <div class="panel-title">PM Tools</div>
+        </div>
+        <div class="tools-body">
+          <div class="tools-tabs">
+            <button class="tools-tab active" id="toolstab-raci" onclick="showToolsTab('raci')">RACI Matrix</button>
+            <button class="tools-tab" id="toolstab-charter" onclick="showToolsTab('charter')">Project Charter</button>
+          </div>
+
+          <!-- RACI view -->
+          <div class="tool-view active" id="tools-raci">
+            <div class="tool-section">
+              <div class="tool-section-title">Describe your project</div>
+              <div class="tool-input-row single">
+                <div><div class="tool-label">Project name</div><input class="tool-input" id="raci-project-name" placeholder="e.g. ERP System Migration" /></div>
+              </div>
+              <div class="tool-input-row single">
+                <div><div class="tool-label">Project type / brief description</div><textarea class="tool-textarea" id="raci-description" placeholder="e.g. Migration of legacy ERP to SAP S/4HANA. Involves IT, Finance, Operations, and external vendor. 6-month timeline."></textarea></div>
+              </div>
+              <div class="tool-input-row single">
+                <div><div class="tool-label">Team members / roles (comma separated)</div><input class="tool-input" id="raci-roles" placeholder="e.g. Project Manager, IT Lead, Finance Director, Vendor, Executive Sponsor, QA Lead" /></div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap;">
+                <button class="tool-generate-btn" id="raci-gen-btn" onclick="generateRaci()">Generate RACI with AI</button>
+                <div class="status-bar" id="raci-status" style="display:none;"><div class="status-dot generating" id="raci-dot"></div><span id="raci-status-text">Generating…</span></div>
+              </div>
+            </div>
+
+            <div id="raci-result" style="display:none;">
+              <div class="tool-section">
+                <div class="tool-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+                  <span>RACI matrix</span>
+                  <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;">Click any cell to cycle R → A → C → I → blank</span>
+                </div>
+                <div class="raci-wrap"><table class="raci-table" id="raci-table"></table></div>
+                <div class="raci-legend">
+                  <span><span class="raci-badge raci-R">R</span> Responsible</span>
+                  <span><span class="raci-badge raci-A">A</span> Accountable</span>
+                  <span><span class="raci-badge raci-C">C</span> Consulted</span>
+                  <span><span class="raci-badge raci-I">I</span> Informed</span>
+                </div>
+                <div class="raci-actions">
+                  <button class="panel-action-btn primary" onclick="exportRaciToExcel()">Export to Excel in OneDrive</button>
+                  <button class="panel-action-btn" onclick="addRaciRow()">+ Add task</button>
+                  <button class="panel-action-btn" onclick="addRaciCol()">+ Add role</button>
+                  <button class="panel-action-btn" onclick="generateRaci()">Regenerate</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charter view -->
+          <div class="tool-view" id="tools-charter">
+            <div class="tool-section">
+              <div class="tool-section-title">Project details</div>
+              <div class="tool-input-row">
+                <div><div class="tool-label">Project name</div><input class="tool-input" id="ch-name" placeholder="e.g. CRM Platform Upgrade" /></div>
+                <div><div class="tool-label">Project sponsor</div><input class="tool-input" id="ch-sponsor" placeholder="e.g. CEO / VP Operations" /></div>
+              </div>
+              <div class="tool-input-row">
+                <div><div class="tool-label">Estimated start date</div><input class="tool-input" type="date" id="ch-start" /></div>
+                <div><div class="tool-label">Estimated end date</div><input class="tool-input" type="date" id="ch-end" /></div>
+              </div>
+              <div class="tool-input-row">
+                <div><div class="tool-label">Estimated budget</div><input class="tool-input" id="ch-budget" placeholder="e.g. $150,000 CAD" /></div>
+                <div><div class="tool-label">Project manager</div><input class="tool-input" id="ch-pm" placeholder="Auto-filled from profile" /></div>
+              </div>
+              <div class="tool-input-row single">
+                <div><div class="tool-label">Project description &amp; business need</div><textarea class="tool-textarea" id="ch-description" placeholder="Describe the project, why it's needed, the problem it solves, and any key constraints or dependencies."></textarea></div>
+              </div>
+              <div class="tool-input-row single">
+                <div><div class="tool-label">Key deliverables / scope (bullet points or comma separated)</div><textarea class="tool-textarea" id="ch-deliverables" placeholder="e.g. New CRM deployed, staff trained, data migrated, integrations tested"></textarea></div>
+              </div>
+              <div class="tool-input-row single">
+                <div><div class="tool-label">Key stakeholders</div><input class="tool-input" id="ch-stakeholders" placeholder="Auto-filled from profile — or add specific ones here" /></div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap;">
+                <button class="tool-generate-btn" id="charter-gen-btn" onclick="generateCharter()">Generate charter with AI</button>
+                <div class="status-bar" id="charter-status" style="display:none;"><div class="status-dot generating" id="charter-dot"></div><span id="charter-status-text">Generating…</span></div>
+              </div>
+            </div>
+
+            <div id="charter-result" style="display:none;">
+              <div class="tool-section">
+                <div class="tool-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+                  <span>Project charter</span>
+                  <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;">All sections are editable</span>
+                </div>
+                <div id="charter-sections"></div>
+                <div class="raci-actions" style="margin-top:16px;">
+                  <button class="panel-action-btn primary" onclick="saveCharterToOneDrive()">Save &amp; Open in Word</button>
+                  <button class="panel-action-btn" onclick="generateCharter()">Regenerate</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="panel" id="panel-settings">
+        <div class="panel-header">
+          <div class="panel-title">Profile &amp; style</div>
+          <button class="save-settings-btn" onclick="saveSettings()">Save changes</button>
+        </div>
+        <div class="settings-scroll">
+          <div class="settings-section">
+            <div class="settings-section-title">Your profile</div>
+            <div class="settings-row">
+              <div class="settings-field"><label class="settings-label">Full name</label><input class="settings-input" id="s-name" placeholder="Your name" /></div>
+              <div class="settings-field"><label class="settings-label">Job title</label><input class="settings-input" id="s-title" placeholder="e.g. Senior PM" /></div>
+              <div class="settings-field"><label class="settings-label">Company</label><input class="settings-input" id="s-company" placeholder="Your organization" /></div>
+              <div class="settings-field"><label class="settings-label">Preferred sign-off</label><input class="settings-input" id="s-signoff" placeholder="e.g. Best regards," /></div>
+              <div class="settings-field full"><label class="settings-label">Current projects</label><input class="settings-input" id="s-projects" placeholder="Comma separated project names" /></div>
+              <div class="settings-field full"><label class="settings-label">Key stakeholders &amp; team</label><textarea class="settings-textarea" id="s-stakeholders" placeholder="Names, roles, and context for your key contacts"></textarea></div>
+              <div class="settings-field full"><label class="settings-label">PM methodology / process notes</label><textarea class="settings-textarea" id="s-pmcontext" placeholder="PMBOK version, sprint cadence, escalation paths, org conventions…"></textarea></div>
+              <div class="settings-field full" style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:4px;">
+                <div style="font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;">Expense settings</div>
+              </div>
+              <div class="settings-field"><label class="settings-label">Excel filename (exact)</label><input class="settings-input" id="s-expfile" placeholder="Expenses for the Company.xlsx" /></div>
+              <div class="settings-field"><label class="settings-label">Active sheet / year tab</label><input class="settings-input" id="s-expsheet" placeholder="e.g. 2026" /></div>
+              <div class="settings-field"><label class="settings-label">OneDrive receipts folder</label><input class="settings-input" id="s-expfolder" placeholder="e.g. Receipts/2026" /></div>
+              <div class="settings-field"><label class="settings-label">HST rate (%)</label><input class="settings-input" id="s-hstrate" placeholder="13" type="number" /></div>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Writing style</div>
+            <div class="settings-field" style="margin-bottom:12px;">
+              <label class="settings-label">Tone preference</label>
+              <select class="settings-input" id="s-tone">
+                <option value="professional">Professional — formal and precise</option>
+                <option value="friendly-professional">Friendly professional — warm but polished</option>
+                <option value="direct">Direct — brief, no fluff</option>
+                <option value="collaborative">Collaborative — inclusive and team-oriented</option>
+              </select>
+            </div>
+            <div class="settings-field">
+              <label class="settings-label">Sample emails (paste 2–3 emails you've written)</label>
+              <textarea class="settings-textarea" id="s-style-samples" style="min-height:140px;" placeholder="Paste real emails you've sent. More examples = better voice matching."></textarea>
+              <div class="settings-hint">The assistant re-analyzes your style whenever you save. Updating samples improves accuracy over time.</div>
+            </div>
+            <div class="style-status"><div class="style-dot" id="style-dot"></div><span id="style-status-text">No style guide yet</span></div>
+            <button class="analyze-btn" onclick="analyzeStyle()">Re-analyze my writing style</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GRAPH='https://graph.microsoft.com/v1.0';
+const REDIRECT_URI='https://ProjectFocused.github.io/pm-assistant/';
+let msalInstance=null,accessToken=null,currentEmail=null,chatHistory=[],cfg={},profile={},styleGuide='';
+
+function showToast(msg,d=3000){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
+
+function initMsal(clientId,tenantId){
+  const msalConfig={
+    auth:{
+      clientId,
+      authority:`https://login.microsoftonline.com/${tenantId}`,
+      redirectUri:REDIRECT_URI,
+      navigateToLoginRequestUrl:false
+    },
+    cache:{cacheLocation:'localStorage',storeAuthStateInCookie:true}
+  };
+  msalInstance=new msal.PublicClientApplication(msalConfig);
+  return msalInstance.initialize();
+}
+
+const SCOPES=['User.Read','Mail.Read','Mail.ReadWrite','Mail.Send','Calendars.Read','Calendars.ReadWrite','Files.ReadWrite','Sites.ReadWrite.All'];
+
+async function msalSignIn(){
+  const anthropic=document.getElementById('inp-anthropic').value.trim();
+  const clientId=document.getElementById('inp-client').value.trim();
+  const tenantId=document.getElementById('inp-tenant').value.trim();
+  if(!anthropic||!clientId||!tenantId){showToast('Please fill in all three fields');return;}
+  const btn=document.getElementById('msal-signin-btn');
+  const statusEl=document.getElementById('msal-status');
+  btn.disabled=true;btn.textContent='Opening Microsoft login…';
+  statusEl.style.display='block';statusEl.textContent='Waiting for Microsoft sign-in…';
+  try{
+    await initMsal(clientId,tenantId);
+    // Handle redirect response first (in case we just came back from a redirect)
+    await msalInstance.handleRedirectPromise();
+    const loginReq={scopes:SCOPES,prompt:'select_account'};
+    let tokenResp=null;
+    // Try silent first in case already signed in
+    const accounts=msalInstance.getAllAccounts();
+    if(accounts.length>0){
+      try{
+        tokenResp=await msalInstance.acquireTokenSilent({scopes:SCOPES,account:accounts[0]});
+      }catch(e){tokenResp=null;}
+    }
+    if(!tokenResp){
+      tokenResp=await msalInstance.loginPopup(loginReq);
+    }
+    accessToken=tokenResp.accessToken;
+    setTimeout(()=>{accessToken=null;},3500000);
+    cfg={anthropic,clientId,tenantId};
+    localStorage.setItem('pm_cfg',JSON.stringify(cfg));
+    statusEl.textContent='Signed in! Loading your profile…';
+    const me=await graphGet('/me');
+    if(!profile.name)profile.name=me.displayName||me.mail||'User';
+    localStorage.setItem('pm_profile',JSON.stringify(profile));
+    showToast('Connected! Fill in your profile.');
+    goSetupStep(2);
+  }catch(e){
+    showToast('Sign-in failed — please try again');
+    statusEl.textContent='Sign-in failed: '+(e.message||'Unknown error');
+    console.error(e);
+  }finally{btn.disabled=false;btn.textContent='Sign in with Microsoft 365 →';}
+}
+
+async function getToken(){
+  if(accessToken)return accessToken;
+  if(!msalInstance){
+    const saved=localStorage.getItem('pm_cfg');
+    if(!saved)throw new Error('Not configured');
+    const c=JSON.parse(saved);
+    await initMsal(c.clientId,c.tenantId);
+    await msalInstance.handleRedirectPromise();
+  }
+  const accounts=msalInstance.getAllAccounts();
+  if(!accounts.length)throw new Error('Not signed in');
+  try{
+    const resp=await msalInstance.acquireTokenSilent({scopes:SCOPES,account:accounts[0]});
+    accessToken=resp.accessToken;
+    setTimeout(()=>{accessToken=null;},3500000);
+    return accessToken;
+  }catch(e){
+    // Silent failed — try popup
+    const resp=await msalInstance.acquireTokenPopup({scopes:SCOPES,account:accounts[0]});
+    accessToken=resp.accessToken;
+    setTimeout(()=>{accessToken=null;},3500000);
+    return accessToken;
+  }
+}
+
+async function graphGet(ep){const t=await getToken();const r=await fetch(GRAPH+ep,{headers:{Authorization:'Bearer '+t}});if(!r.ok)throw new Error('Graph '+r.status);return r.json();}
+async function graphPost(ep,body){const t=await getToken();const r=await fetch(GRAPH+ep,{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('Graph '+r.status);return r.json();}
+  const p=profile;
+  let s=`You are an expert AI assistant for a project manager. You have deep knowledge of PMBOK (6th and 7th editions), PMI standards, Agile, Scrum, PRINCE2, risk management, stakeholder engagement, earned value management (EVM), WBS, RACI matrices, change control, and all aspects of professional project management.`;
+  if(p.name)s+=`\n\nYou are assisting ${p.name}`;
+  if(p.jobTitle)s+=`, ${p.jobTitle}`;
+  if(p.company)s+=` at ${p.company}`;
+  s+='.';
+  if(p.projects)s+=`\n\nCurrent active projects: ${p.projects}`;
+  if(p.stakeholders)s+=`\n\nKey stakeholders and team members: ${p.stakeholders}`;
+  if(p.pmContext)s+=`\n\nOrganizational / process context: ${p.pmContext}`;
+  if(styleGuide){
+    s+=`\n\nWRITING STYLE GUIDE — always follow this when drafting emails or documents:\n${styleGuide}`;
+  } else {
+    const tones={'professional':'Write in a formal, precise, professional tone.','friendly-professional':'Write in a warm but polished tone — professional yet approachable.','direct':'Write concisely and directly. No filler. Get to the point.','collaborative':'Use inclusive, team-oriented language. Emphasize collaboration and shared ownership.'};
+    s+=`\n\nTone: ${tones[p.tone]||tones['professional']}`;
+  }
+  if(p.signOff)s+=`\n\nAlways sign off emails with: ${p.signOff}`;
+  if(p.name)s+=` ${p.name}`;
+  s+=`\n\nBe concise, practical, and action-oriented. When drafting emails, write them complete and ready to send. Draw on PMBOK best practices when relevant.`;
+  return s;
+}
+
+function buildSystemPrompt(){
+  const p=profile;
+  let s=`You are an expert AI assistant for a project manager. You have deep knowledge of PMBOK (6th and 7th editions), PMI standards, Agile, Scrum, PRINCE2, risk management, stakeholder engagement, earned value management (EVM), WBS, RACI matrices, change control, and all aspects of professional project management.`;
+  if(p.name)s+=`\n\nYou are assisting ${p.name}`;
+  if(p.jobTitle)s+=`, ${p.jobTitle}`;
+  if(p.company)s+=` at ${p.company}`;
+  s+='.';
+  if(p.projects)s+=`\n\nCurrent active projects: ${p.projects}`;
+  if(p.stakeholders)s+=`\n\nKey stakeholders and team members: ${p.stakeholders}`;
+  if(p.pmContext)s+=`\n\nOrganizational / process context: ${p.pmContext}`;
+  if(styleGuide){
+    s+=`\n\nWRITING STYLE GUIDE — always follow this when drafting emails or documents:\n${styleGuide}`;
+  } else {
+    const tones={'professional':'Write in a formal, precise, professional tone.','friendly-professional':'Write in a warm but polished tone — professional yet approachable.','direct':'Write concisely and directly. No filler. Get to the point.','collaborative':'Use inclusive, team-oriented language. Emphasize collaboration and shared ownership.'};
+    s+=`\n\nTone: ${tones[p.tone]||tones['professional']}`;
+  }
+  if(p.signOff)s+=`\n\nAlways sign off emails with: ${p.signOff}`;
+  if(p.name)s+=` ${p.name}`;
+  s+=`\n\nBe concise, practical, and action-oriented. When drafting emails, write them complete and ready to send. Draw on PMBOK best practices when relevant.`;
+  return s;
+}
+
+async function callClaude(msg,useHistory=false){
+  const messages=useHistory?[...chatHistory,{role:'user',content:msg}]:[{role:'user',content:msg}];
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildSystemPrompt(),messages})});
+  const data=await res.json();
+  return data.content?.map(b=>b.text||'').join('')||'Sorry, something went wrong.';
+}
+
+function goSetupStep(n){
+  document.querySelectorAll('.setup-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.setup-step-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('setup-page-'+n).classList.add('active');
+  document.getElementById('tab-'+n).classList.add('active');
+}
+
+async function finishSetup(){
+  profile={
+    name:document.getElementById('inp-name').value.trim(),
+    jobTitle:document.getElementById('inp-jobtitle').value.trim(),
+    company:document.getElementById('inp-company').value.trim(),
+    projects:document.getElementById('inp-projects').value.trim(),
+    stakeholders:document.getElementById('inp-stakeholders').value.trim(),
+    pmContext:document.getElementById('inp-pmcontext').value.trim(),
+    signOff:document.getElementById('inp-signoff').value.trim(),
+    tone:document.getElementById('inp-tone').value,
+    styleSamples:document.getElementById('inp-style-samples').value.trim()
+  };
+  localStorage.setItem('pm_cfg',JSON.stringify(cfg));
+  localStorage.setItem('pm_profile',JSON.stringify(profile));
+  if(profile.styleSamples){showToast('Analyzing your writing style…');await analyzeStyleFromSamples(profile.styleSamples);}
+  try{const me=await graphGet('/me');if(!profile.name)profile.name=me.displayName||me.mail||'User';localStorage.setItem('pm_profile',JSON.stringify(profile));}catch(e){}
+  initApp();
+}
+
+async function analyzeStyleFromSamples(samples){
+  try{
+    const prompt=`Analyze these email samples and create a concise writing style guide (max 180 words) capturing: sentence length and structure, formality level, how requests are framed, common openers and closers, use of bullet points vs prose, directness level, and any distinctive phrases or patterns. Make it actionable so an AI can replicate this person's voice exactly.\n\nEmail samples:\n${samples.substring(0,3000)}`;
+    styleGuide=await callClaude(prompt,false);
+    localStorage.setItem('pm_style_guide',styleGuide);
+    updateStyleStatus(true);
+  }catch(e){console.error('Style analysis failed',e);}
+}
+
+function updateStyleStatus(has){
+  const dot=document.getElementById('style-dot');
+  const txt=document.getElementById('style-status-text');
+  if(!dot||!txt)return;
+  dot.classList.toggle('active',has);
+  txt.textContent=has?'Writing style learned — drafts will match your voice':'No style samples added yet';
+}
+
+async function analyzeStyle(){
+  const samples=document.getElementById('s-style-samples').value.trim();
+  if(!samples){showToast('Please paste some email samples first');return;}
+  showToast('Analyzing your writing style…');
+  await analyzeStyleFromSamples(samples);
+  showToast('Style guide updated — future drafts will sound like you.');
+}
+
+function initApp(){
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app-screen').style.display='flex';
+  document.getElementById('user-pill').textContent=profile.name||'Me';
+  populateSettings();
+  styleGuide=localStorage.getItem('pm_style_guide')||'';
+  updateStyleStatus(!!styleGuide);
+  const first=profile.name?profile.name.split(' ')[0]:'there';
+  const projectLine=profile.projects?` I know you're working on ${profile.projects}.`:'';
+  const styleLine=styleGuide?' I have your writing style and will draft everything to sound like you.':' Add some sample emails in your Profile tab so I can match your voice.';
+  addWelcomeMessage(`Hey ${first}! I'm your PM Assistant, connected to your Outlook and Calendar.${projectLine}${styleLine} I'm grounded in PMBOK — ask me anything.`);
+  loadEmails();
+  loadCalendar();
+}
+
+function addWelcomeMessage(text){
+  const msgs=document.getElementById('chat-messages');
+  msgs.innerHTML='';
+  const row=document.createElement('div');row.className='msg-row ai';
+  const av=document.createElement('div');av.className='avatar ai';av.textContent='AI';
+  const wrap=document.createElement('div');
+  const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=text;
+  wrap.appendChild(bubble);
+  const chips=document.createElement('div');chips.className='quick-chips';chips.id='starter-chips';
+  [['Summarize inbox','Summarize my unread emails and flag what needs my attention.'],
+   ["Today's meetings","What meetings do I have today? Help me prepare for each one."],
+   ['Draft status update','Help me draft a project status update email for my stakeholders.'],
+   ['Plan my day','Help me plan and prioritize my day based on emails and calendar.']
+  ].forEach(([label,prompt])=>{
+    const c=document.createElement('span');c.className='chip';c.textContent=label;
+    c.onclick=()=>quickAction(prompt);chips.appendChild(c);
+  });
+  wrap.appendChild(chips);
+  row.appendChild(av);row.appendChild(wrap);
+  msgs.appendChild(row);
+}
+
+function populateSettings(){
+  const p=profile;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el&&v!==undefined)el.value=v;};
+  set('s-name',p.name);set('s-title',p.jobTitle);set('s-company',p.company);
+  set('s-projects',p.projects);set('s-stakeholders',p.stakeholders);
+  set('s-pmcontext',p.pmContext);set('s-signoff',p.signOff);
+  set('s-tone',p.tone);set('s-style-samples',p.styleSamples);
+  set('s-expfile',p.expFile||'Expenses for the Company.xlsx');
+  set('s-expsheet',p.expSheet||new Date().getFullYear().toString());
+  set('s-expfolder',p.expFolder||'Receipts');
+  set('s-hstrate',p.hstRate||'13');
+}
+
+function saveSettings(){
+  const updated={
+    ...profile,
+    name:document.getElementById('s-name').value.trim(),
+    jobTitle:document.getElementById('s-title').value.trim(),
+    company:document.getElementById('s-company').value.trim(),
+    projects:document.getElementById('s-projects').value.trim(),
+    stakeholders:document.getElementById('s-stakeholders').value.trim(),
+    pmContext:document.getElementById('s-pmcontext').value.trim(),
+    signOff:document.getElementById('s-signoff').value.trim(),
+    tone:document.getElementById('s-tone').value,
+    styleSamples:document.getElementById('s-style-samples').value.trim(),
+    expFile:document.getElementById('s-expfile').value.trim()||'Expenses for the Company.xlsx',
+    expSheet:document.getElementById('s-expsheet').value.trim()||new Date().getFullYear().toString(),
+    expFolder:document.getElementById('s-expfolder').value.trim()||'Receipts',
+    hstRate:document.getElementById('s-hstrate').value.trim()||'13'
+  };
+  profile=updated;
+  localStorage.setItem('pm_profile',JSON.stringify(profile));
+  document.getElementById('user-pill').textContent=profile.name||'Me';
+  showToast('Profile saved');
+}
+
+function signOut(){
+  ['pm_cfg','pm_profile','pm_style_guide'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;cfg={};profile={};styleGuide='';
+  if(msalInstance){
+    try{
+      const accounts=msalInstance.getAllAccounts();
+      if(accounts.length>0)msalInstance.logoutPopup({account:accounts[0]}).catch(()=>{});
+    }catch(e){}
+    msalInstance=null;
+  }
+  document.getElementById('setup-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+}
+
+function switchPanel(name,tabEl){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(tabEl)tabEl.classList.add('active');
+  if(name==='tools')prefillCharterFromProfile();
+}
+
+async function loadEmails(){
+  const list=document.getElementById('email-list');
+  list.innerHTML='<div class="loading-state"><div class="spinner"></div>Loading emails…</div>';
+  try{
+    const data=await graphGet('/me/mailFolders/inbox/messages?$top=20&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,isRead,bodyPreview');
+    list.innerHTML='';
+    if(!data.value?.length){list.innerHTML='<div class="loading-state" style="color:var(--text3)">No emails found</div>';return;}
+    data.value.forEach(email=>{
+      const el=document.createElement('div');
+      el.className='email-item'+(email.isRead?'':' unread');
+      const d=new Date(email.receivedDateTime);
+      const ts=d.toLocaleDateString('en-CA',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
+      el.innerHTML=`<div class="email-meta"><div class="email-from">${email.from?.emailAddress?.name||email.from?.emailAddress?.address||'Unknown'}</div><div class="email-time">${ts}</div></div><div class="email-subject">${email.subject||'(no subject)'}</div><div class="email-preview">${email.bodyPreview||''}</div>`;
+      el.onclick=()=>openEmail(email.id);
+      list.appendChild(el);
+    });
+  }catch(e){list.innerHTML='<div class="loading-state" style="color:var(--text3)">Failed to load emails</div>';}
+}
+
+async function openEmail(id){
+  const detail=document.getElementById('email-detail');
+  detail.classList.add('visible');
+  document.getElementById('email-list').style.display='none';
+  document.getElementById('draft-box').style.display='none';
+  document.getElementById('detail-subject').textContent='Loading…';
+  document.getElementById('detail-from').textContent='';
+  document.getElementById('detail-body').textContent='';
+  try{
+    const email=await graphGet(`/me/messages/${id}?$select=id,subject,from,toRecipients,body,receivedDateTime`);
+    currentEmail=email;
+    document.getElementById('detail-subject').textContent=email.subject||'(no subject)';
+    document.getElementById('detail-from').textContent=`From: ${email.from?.emailAddress?.name||''} <${email.from?.emailAddress?.address||''}> · ${new Date(email.receivedDateTime).toLocaleString('en-CA')}`;
+    const body=email.body?.contentType==='html'?new DOMParser().parseFromString(email.body.content,'text/html').body.innerText:(email.body?.content||'');
+    document.getElementById('detail-body').textContent=body;
+    await graphPost(`/me/messages/${id}/markAsRead`,{});
+  }catch(e){document.getElementById('detail-subject').textContent='Failed to load';}
+}
+
+function closeEmailDetail(){
+  document.getElementById('email-detail').classList.remove('visible');
+  document.getElementById('email-list').style.display='flex';
+  currentEmail=null;
+}
+
+async function draftReply(){
+  if(!currentEmail)return;
+  const draftBox=document.getElementById('draft-box');
+  const draftContent=document.getElementById('draft-content');
+  document.getElementById('draft-label').textContent='AI Draft Reply';
+  draftBox.style.display='block';
+  draftContent.textContent='Drafting in your style…';
+  const body=document.getElementById('detail-body').textContent;
+  const subject=document.getElementById('detail-subject').textContent;
+  const from=document.getElementById('detail-from').textContent;
+  const reply=await callClaude(`Draft a reply to this email in my writing style. Write only the email body — complete and ready to send.\n\nFrom: ${from}\nSubject: ${subject}\n\nEmail:\n${body.substring(0,2500)}`);
+  draftContent.textContent=reply;
+}
+
+async function summarizeEmail(){
+  if(!currentEmail)return;
+  document.getElementById('draft-label').textContent='AI Summary';
+  const draftBox=document.getElementById('draft-box');
+  const draftContent=document.getElementById('draft-content');
+  draftBox.style.display='block';
+  draftContent.textContent='Summarizing…';
+  const body=document.getElementById('detail-body').textContent;
+  const subject=document.getElementById('detail-subject').textContent;
+  const s=await callClaude(`Summarize this email in 3 bullet points and identify any action items I need to take as the PM.\n\nSubject: ${subject}\n\n${body.substring(0,2500)}`);
+  draftContent.textContent=s;
+}
+
+async function sendDraftReply(){
+  if(!currentEmail)return;
+  const draftText=document.getElementById('draft-content').textContent;
+  const replyTo=currentEmail.from?.emailAddress?.address;
+  try{
+    await graphPost('/me/sendMail',{message:{subject:'RE: '+(currentEmail.subject||''),body:{contentType:'Text',content:draftText},toRecipients:[{emailAddress:{address:replyTo}}]}});
+    showToast('Reply sent');
+    document.getElementById('draft-box').style.display='none';
+  }catch(e){showToast('Failed to send — check permissions');}
+}
+
+async function loadCalendar(){
+  const grid=document.getElementById('calendar-grid');
+  grid.innerHTML='<div class="loading-state"><div class="spinner"></div>Loading calendar…</div>';
+  try{
+    const now=new Date();
+    const end=new Date(now.getTime()+7*86400000);
+    const data=await graphGet(`/me/calendarView?startDateTime=${now.toISOString()}&endDateTime=${end.toISOString()}&$orderby=start/dateTime&$select=id,subject,start,end,attendees,location&$top=50`);
+    grid.innerHTML='';
+    if(!data.value?.length){grid.innerHTML='<div class="loading-state" style="color:var(--text3)">No upcoming events</div>';return;}
+    let lastDay='';
+    data.value.forEach(ev=>{
+      const s=new Date(ev.start?.dateTime+'Z');
+      const e2=new Date(ev.end?.dateTime+'Z');
+      const day=s.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+      if(day!==lastDay){const hdr=document.createElement('div');hdr.className='cal-day-header';hdr.textContent=day;grid.appendChild(hdr);lastDay=day;}
+      const el=document.createElement('div');el.className='cal-event';
+      const ts=s.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'})+' – '+e2.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
+      const att=(ev.attendees||[]).slice(0,3).map(a=>a.emailAddress?.name||a.emailAddress?.address).join(', ');
+      el.innerHTML=`<div class="cal-event-time">${ts}</div><div class="cal-event-title">${ev.subject||'Untitled'}</div><div class="cal-event-attendees">${att}</div>`;
+      el.onclick=()=>quickAction(`Help me prepare for this meeting: "${ev.subject}" on ${day} at ${ts}${att?' with '+att:''}`);
+      grid.appendChild(el);
+    });
+  }catch(e){grid.innerHTML='<div class="loading-state" style="color:var(--text3)">Failed to load calendar</div>';}
+}
+
+async function createEvent(){
+  const title=document.getElementById('ev-title').value.trim();
+  const date=document.getElementById('ev-date').value;
+  const time=document.getElementById('ev-time').value;
+  const duration=parseInt(document.getElementById('ev-duration').value)||60;
+  if(!title||!date||!time){showToast('Please fill in title, date and time');return;}
+  const startDT=new Date(`${date}T${time}:00`);
+  const endDT=new Date(startDT.getTime()+duration*60000);
+  try{
+    await graphPost('/me/events',{subject:title,start:{dateTime:startDT.toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},end:{dateTime:endDT.toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}});
+    showToast('Event added to calendar');
+    ['ev-title','ev-date','ev-time','ev-duration'].forEach(id=>document.getElementById(id).value='');
+    loadCalendar();
+  }catch(e){showToast('Failed to create event');}
+}
+
+function addChatMessage(role,text){
+  const chips=document.getElementById('starter-chips');if(chips)chips.remove();
+  const msgs=document.getElementById('chat-messages');
+  const row=document.createElement('div');row.className='msg-row '+role;
+  const av=document.createElement('div');av.className='avatar '+role;av.textContent=role==='ai'?'AI':'You';
+  const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=text;
+  row.appendChild(av);row.appendChild(bubble);
+  msgs.appendChild(row);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function showTyping(){
+  const msgs=document.getElementById('chat-messages');
+  const row=document.createElement('div');row.className='msg-row ai';row.id='typing';
+  const av=document.createElement('div');av.className='avatar ai';av.textContent='AI';
+  const bubble=document.createElement('div');bubble.className='bubble';
+  bubble.innerHTML='<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+  row.appendChild(av);row.appendChild(bubble);msgs.appendChild(row);msgs.scrollTop=msgs.scrollHeight;
+}
+function removeTyping(){const t=document.getElementById('typing');if(t)t.remove();}
+
+async function sendChat(){
+  const input=document.getElementById('chat-input');
+  const msg=input.value.trim();if(!msg)return;
+  input.value='';input.style.height='auto';
+  await processChat(msg);
+}
+
+async function quickAction(msg){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.getElementById('panel-chat').classList.add('active');
+  await processChat(msg);
+}
+
+async function processChat(msg){
+  addChatMessage('user',msg);
+  chatHistory.push({role:'user',content:msg});
+  showTyping();
+  let context=msg;
+  const lower=msg.toLowerCase();
+  try{
+    if(lower.includes('email')||lower.includes('inbox')||lower.includes('unread')||lower.includes('message')){
+      try{
+        const data=await graphGet('/me/mailFolders/inbox/messages?$top=10&$filter=isRead eq false&$select=subject,from,receivedDateTime,bodyPreview');
+        if(data.value?.length){
+          const s=data.value.map((e,i)=>`${i+1}. From: ${e.from?.emailAddress?.name||e.from?.emailAddress?.address}\n   Subject: ${e.subject}\n   Preview: ${e.bodyPreview?.substring(0,150)}`).join('\n\n');
+          context=`${msg}\n\n[Current unread emails:]\n${s}`;
+        }else{context=`${msg}\n\n[No unread emails]`;}
+      }catch(e){}
+    }
+    if(lower.includes('calendar')||lower.includes('meeting')||lower.includes('schedule')||lower.includes('today')||lower.includes('tomorrow')||lower.includes('agenda')){
+      try{
+        const now=new Date();
+        const end=new Date(now.getTime()+2*86400000);
+        const data=await graphGet(`/me/calendarView?startDateTime=${now.toISOString()}&endDateTime=${end.toISOString()}&$select=subject,start,end,attendees&$top=20`);
+        if(data.value?.length){
+          const s=data.value.map(ev=>{const st=new Date(ev.start?.dateTime+'Z');const e2=new Date(ev.end?.dateTime+'Z');return`• ${ev.subject} — ${st.toLocaleString('en-CA',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})} to ${e2.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'})}`;}).join('\n');
+          context=context+`\n\n[Upcoming events (48h):]\n${s}`;
+        }
+      }catch(e){}
+    }
+    const messages=[...chatHistory.slice(0,-1),{role:'user',content:context}];
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildSystemPrompt(),messages})});
+    const data=await res.json();
+    const reply=data.content?.map(b=>b.text||'').join('')||'Sorry, something went wrong.';
+    removeTyping();
+    addChatMessage('ai',reply);
+    chatHistory.push({role:'assistant',content:reply});
+    if(chatHistory.length===2){
+      const label=msg.substring(0,40)+(msg.length>40?'…':'');
+      const histList=document.getElementById('chat-history-list');
+      const item=document.createElement('div');item.className='hist-item';item.textContent=label;
+      histList.appendChild(item);
+    }
+  }catch(e){removeTyping();addChatMessage('ai','Something went wrong. Please check your connection and try again.');}
+}
+
+document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
+document.getElementById('chat-input').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+
+window.addEventListener('load',async()=>{
+  const sc=localStorage.getItem('pm_cfg');
+  const sp=localStorage.getItem('pm_profile');
+  if(sc){
+    try{
+      cfg=JSON.parse(sc);
+      profile=sp?JSON.parse(sp):{};
+      styleGuide=localStorage.getItem('pm_style_guide')||'';
+      await initMsal(cfg.clientId,cfg.tenantId);
+      await msalInstance.handleRedirectPromise();
+      const accounts=msalInstance.getAllAccounts();
+      if(accounts.length>0){
+        try{
+          const resp=await msalInstance.acquireTokenSilent({scopes:SCOPES,account:accounts[0]});
+          accessToken=resp.accessToken;
+          setTimeout(()=>{accessToken=null;},3500000);
+        }catch(e){console.log('Silent token failed — will prompt on first action');}
+      }
+      initApp();
+    }catch(e){localStorage.removeItem('pm_cfg');}
+  }
+});
+
+/* ── EXPENSE MODULE ── */
+let currentReceiptBase64=null,currentReceiptFile=null,expenseLog=[];
+
+function showExpTab(tab){
+  document.getElementById('exp-scan-view').style.display=tab==='scan'?'block':'none';
+  document.getElementById('exp-log-view').style.display=tab==='log'?'block':'none';
+  document.getElementById('exptab-scan').classList.toggle('active',tab==='scan');
+  document.getElementById('exptab-log').classList.toggle('active',tab==='log');
+}
+
+function toggleMileageForm(){
+  const f=document.getElementById('mileage-form');
+  f.classList.toggle('visible');
+  if(f.classList.contains('visible'))document.getElementById('mil-date').value=new Date().toISOString().split('T')[0];
+}
+
+function handleDragOver(e){e.preventDefault();document.getElementById('upload-zone').classList.add('dragover');}
+function handleDragLeave(){document.getElementById('upload-zone').classList.remove('dragover');}
+function handleDrop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('dragover');const file=e.dataTransfer.files[0];if(file)processReceiptFile(file);}
+function handleReceiptFile(e){const file=e.target.files[0];if(file)processReceiptFile(file);}
+
+function processReceiptFile(file){
+  currentReceiptFile=file;
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    const dataUrl=e.target.result;
+    currentReceiptBase64=dataUrl.split(',')[1];
+    document.getElementById('receipt-img').src=dataUrl;
+    document.getElementById('upload-zone').style.display='none';
+    document.getElementById('receipt-preview').classList.add('visible');
+    document.getElementById('extraction-status').textContent='Reading receipt…';
+    document.getElementById('save-expense-btn').style.display='none';
+    await extractReceiptData(currentReceiptBase64,file.type||'image/jpeg');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extractReceiptData(base64,mediaType){
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:600,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+          {type:'text',text:`Extract all expense details from this receipt. Respond ONLY with a valid JSON object, no markdown, no other text:\n{"description":"merchant name only, short","date":"YYYY-MM-DD","category":"one of: Business meals|Travel & transport|Software & subscriptions|Office supplies|Client entertainment|Other","subtotal":0.00,"hst":0.00,"fee":0.00,"total":0.00,"notes":"any relevant notes"}\nIf HST is not shown, calculate 13% of subtotal. If a field is unclear use null.`}
+        ]}]
+      })
+    });
+    const data=await res.json();
+    const raw=data.content?.map(b=>b.text||'').join('')||'{}';
+    let parsed={};
+    try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){}
+    populateExtraction(parsed);
+    // Auto-generate ID preview after extraction
+    await refreshIdPreview();
+    document.getElementById('extraction-status').textContent='Review and confirm details';
+    document.getElementById('save-expense-btn').style.display='inline-block';
+    renderSummary();
+  }catch(e){
+    document.getElementById('extraction-status').textContent='Could not read receipt — please fill in manually';
+    await refreshIdPreview();
+    document.getElementById('save-expense-btn').style.display='inline-block';
+  }
+}
+
+// ── SMART ID LOGIC ──
+// Format: "001 - Category - Merchant"
+// Reads active Excel sheet to find highest existing number, always stays in sync
+
+async function getNextExpenseId(category, merchant){
+  const expFileName=profile.expFile||'Expenses for the Company.xlsx';
+  const expSheet=profile.expSheet||new Date().getFullYear().toString();
+  let highestNum=0;
+  try{
+    // Find the Excel file
+    const searchRes=await graphGet(`/me/drive/root/search(q='${encodeURIComponent(expFileName)}')?$select=id,name`);
+    const excelFile=searchRes.value?.find(f=>f.name===expFileName);
+    if(excelFile){
+      // Read the Identification No. column (column C = index 2)
+      const used=await graphGet(`/me/drive/items/${excelFile.id}/workbook/worksheets/${encodeURIComponent(expSheet)}/usedRange?$select=values`);
+      if(used.values&&used.values.length>1){
+        // Skip header row, scan column C (index 2)
+        for(let i=1;i<used.values.length;i++){
+          const cell=String(used.values[i][2]||'').trim();
+          // Extract leading number — handles "001 - Something", "042 - Other", plain "007", etc.
+          const match=cell.match(/^(\d+)/);
+          if(match){
+            const num=parseInt(match[1],10);
+            if(num>highestNum)highestNum=num;
+          }
+        }
+      }
+    }
+  }catch(e){
+    console.warn('Could not read Excel for ID sync — using session count',e);
+  }
+  const nextNum=highestNum+1;
+  const padded=String(nextNum).padStart(3,'0');
+  // Build short category label
+  const catMap={'Business meals':'Meals','Travel & transport':'Travel','Software & subscriptions':'Software','Office supplies':'Supplies','Client entertainment':'Entertainment','Other':'Other'};
+  const catShort=catMap[category]||category||'Expense';
+  const merchantShort=(merchant||'').replace(/[^a-zA-Z0-9\s]/g,'').trim().split(' ').slice(0,3).join(' ');
+  return merchantShort?`${padded} - ${catShort} - ${merchantShort}`:`${padded} - ${catShort}`;
+}
+
+async function refreshIdPreview(){
+  const cat=document.getElementById('ex-category')?.value||'Other';
+  const merchant=document.getElementById('ex-desc')?.value||'';
+  const idField=document.getElementById('ex-idno');
+  if(!idField)return;
+  idField.placeholder='Generating ID…';
+  const id=await getNextExpenseId(cat,merchant);
+  idField.placeholder=id;
+  // Only auto-fill if user hasn't typed something manually
+  if(!idField.value)idField.value=id;
+}
+
+function populateExtraction(d){
+  const v=(id,val)=>{const el=document.getElementById(id);if(el&&val!=null)el.value=val;};
+  v('ex-desc',d.description);
+  v('ex-date',d.date);
+  v('ex-subtotal',d.subtotal!=null?parseFloat(d.subtotal).toFixed(2):null);
+  v('ex-hst',d.hst!=null?parseFloat(d.hst).toFixed(2):null);
+  v('ex-fee',d.fee!=null?parseFloat(d.fee).toFixed(2):null);
+  v('ex-total',d.total!=null?parseFloat(d.total).toFixed(2):null);
+  v('ex-notes',d.notes);
+  if(d.category){
+    const sel=document.getElementById('ex-category');
+    for(let o of sel.options){if(o.value===d.category||o.text===d.category){sel.value=o.value;break;}}
+  }
+}
+
+function recalcHST(){
+  const sub=parseFloat(document.getElementById('ex-subtotal').value)||0;
+  const hstRate=(parseFloat(profile.hstRate)||13)/100;
+  document.getElementById('ex-hst').value=(sub*hstRate).toFixed(2);
+  recalcTotal();
+}
+function recalcTotal(){
+  const sub=parseFloat(document.getElementById('ex-subtotal').value)||0;
+  const hst=parseFloat(document.getElementById('ex-hst').value)||0;
+  const fee=parseFloat(document.getElementById('ex-fee').value)||0;
+  document.getElementById('ex-total').value=(sub+hst+fee).toFixed(2);
+  renderSummary();
+}
+
+function renderSummary(){
+  const idVal=document.getElementById('ex-idno').value||document.getElementById('ex-idno').placeholder||'—';
+  const desc=document.getElementById('ex-desc').value||'—';
+  const date=document.getElementById('ex-date').value||'—';
+  const cat=document.getElementById('ex-category').value||'—';
+  const sub=parseFloat(document.getElementById('ex-subtotal').value)||0;
+  const hst=parseFloat(document.getElementById('ex-hst').value)||0;
+  const total=parseFloat(document.getElementById('ex-total').value)||0;
+  const rows=[['ID',idVal],['Merchant',desc],['Date',date],['Category',cat],['Subtotal','$'+sub.toFixed(2)],['HST','$'+hst.toFixed(2)],['Total','$'+total.toFixed(2)]];
+  document.getElementById('exp-summary').innerHTML=rows.map(([l,v])=>`<div class="exp-summary-row"><span class="exp-summary-label">${l}</span><span>${v}</span></div>`).join('');
+}
+
+function resetExpenseForm(){
+  document.getElementById('upload-zone').style.display='flex';
+  document.getElementById('receipt-preview').classList.remove('visible');
+  document.getElementById('receipt-img').src='';
+  document.getElementById('receipt-file-input').value='';
+  document.getElementById('save-expense-btn').style.display='none';
+  document.getElementById('exp-summary').innerHTML='';
+  ['ex-desc','ex-date','ex-subtotal','ex-hst','ex-fee','ex-total','ex-notes','ex-idno'].forEach(id=>{
+    const el=document.getElementById(id);if(el){el.value='';el.placeholder=id==='ex-idno'?'Auto-assigned':el.placeholder;}
+  });
+  currentReceiptBase64=null;currentReceiptFile=null;
+}
+
+async function getOrFindExcelFileId(){
+  const expFileName=profile.expFile||'Expenses for the Company.xlsx';
+  const searchRes=await graphGet(`/me/drive/root/search(q='${encodeURIComponent(expFileName)}')?$select=id,name`);
+  const excelFile=searchRes.value?.find(f=>f.name===expFileName);
+  if(!excelFile)throw new Error(`Excel file "${expFileName}" not found — check the filename in Profile settings`);
+  return excelFile.id;
+}
+
+async function saveExpense(){
+  const desc=document.getElementById('ex-desc').value.trim()||'Expense';
+  const date=document.getElementById('ex-date').value||new Date().toISOString().split('T')[0];
+  const cat=document.getElementById('ex-category').value;
+  const sub=parseFloat(document.getElementById('ex-subtotal').value)||0;
+  const hst=parseFloat(document.getElementById('ex-hst').value)||0;
+  const fee=parseFloat(document.getElementById('ex-fee').value)||0;
+  const total=parseFloat(document.getElementById('ex-total').value)||0;
+  const notes=document.getElementById('ex-notes').value.trim();
+  // Use manually entered ID if provided, otherwise use auto-generated placeholder
+  const idField=document.getElementById('ex-idno');
+  let idNo=idField.value.trim()||idField.placeholder;
+  // If placeholder still says "Generating..." fall back to fresh lookup
+  if(!idNo||idNo==='Auto-assigned'||idNo==='Generating ID…'){
+    idNo=await getNextExpenseId(cat,desc);
+  }
+
+  const btn=document.getElementById('save-expense-btn');
+  btn.textContent='Saving…';btn.disabled=true;
+
+  const expSheet=profile.expSheet||new Date().getFullYear().toString();
+  const expFolder=profile.expFolder||'Receipts';
+
+  try{
+    const fileId=await getOrFindExcelFileId();
+
+    // 1. Save receipt image to OneDrive
+    if(currentReceiptFile&&currentReceiptBase64){
+      const ext=(currentReceiptFile.name.split('.').pop()||'jpg').toLowerCase();
+      const safeName=idNo.replace(/[\/\\:*?"<>|]/g,'-');
+      const fname=`${expFolder}/${date}_${safeName}.${ext}`;
+      const binary=atob(currentReceiptBase64);
+      const bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      const token=await getToken();
+      await fetch(`${GRAPH}/me/drive/root:/${fname}:/content`,{
+        method:'PUT',
+        headers:{Authorization:'Bearer '+token,'Content-Type':currentReceiptFile.type||'image/jpeg'},
+        body:bytes.buffer
+      });
+      showToast('Receipt image saved to OneDrive');
+    }
+
+    // 2. Find next empty row
+    let nextRow=2;
+    try{
+      const used=await graphGet(`/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(expSheet)}/usedRange?$select=rowCount`);
+      nextRow=(used.rowCount||1)+1;
+    }catch(e){}
+
+    // 3. Write row — columns match your exact headers
+    const rowValues=[[
+      desc,           // A: Description
+      'Expense',      // B: Type
+      idNo,           // C: Identification No.
+      date,           // D: Date
+      cat,            // E: Expense Type
+      'Non-Billable', // F: Billable or Non-Billable
+      'Other',        // G: Mileage or other
+      fee||'',        // H: Fee on expenses
+      sub,            // I: Subtotal before HST
+      hst,            // J: HST
+      total,          // K: Total including Tax
+      notes||''       // L: Notes
+    ]];
+    const rangeAddr=`A${nextRow}:L${nextRow}`;
+    await fetch(`${GRAPH}/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(expSheet)}/range(address='${rangeAddr}')`,{
+      method:'PATCH',
+      headers:{Authorization:'Bearer '+await getToken(),'Content-Type':'application/json'},
+      body:JSON.stringify({values:rowValues})
+    });
+
+    showToast('Saved to Excel!');
+    expenseLog.unshift({date,desc,total,cat,idNo});
+    updateExpenseLog();
+    resetExpenseForm();
+    showExpTab('log');
+
+  }catch(e){
+    showToast('Error: '+e.message,6000);
+    console.error(e);
+  }finally{
+    btn.textContent='Save to Excel & OneDrive';
+    btn.disabled=false;
+  }
+}
+
+async function saveMileage(){
+  const date=document.getElementById('mil-date').value||new Date().toISOString().split('T')[0];
+  const km=parseFloat(document.getElementById('mil-km').value)||0;
+  const rate=parseFloat(document.getElementById('mil-rate').value)||0.72;
+  const desc=document.getElementById('mil-desc').value.trim()||'Mileage';
+  if(!km){showToast('Please enter kilometres');return;}
+  const total=km*rate;
+  const expSheet=profile.expSheet||new Date().getFullYear().toString();
+
+  // Get next sequential ID from Excel, using Travel category
+  const idNo=await getNextExpenseId('Travel & transport',desc);
+
+  try{
+    const fileId=await getOrFindExcelFileId();
+    let nextRow=2;
+    try{
+      const used=await graphGet(`/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(expSheet)}/usedRange?$select=rowCount`);
+      nextRow=(used.rowCount||1)+1;
+    }catch(e){}
+
+    const rowValues=[[
+      desc,           // A: Description
+      'Expense',      // B: Type
+      idNo,           // C: Identification No.
+      date,           // D: Date
+      'Travel & transport', // E: Expense Type
+      'Non-Billable', // F: Billable or Non-Billable
+      'Mileage',      // G: Mileage or other
+      '',             // H: Fee on expenses
+      '',             // I: Subtotal before HST
+      '',             // J: HST
+      total.toFixed(2), // K: Total including Tax
+      `${km}km @ $${rate}/km` // L: Notes
+    ]];
+    const rangeAddr=`A${nextRow}:L${nextRow}`;
+    await fetch(`${GRAPH}/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(expSheet)}/range(address='${rangeAddr}')`,{
+      method:'PATCH',
+      headers:{Authorization:'Bearer '+await getToken(),'Content-Type':'application/json'},
+      body:JSON.stringify({values:rowValues})
+    });
+
+    showToast(`Mileage saved — $${total.toFixed(2)} · ID: ${idNo}`);
+    expenseLog.unshift({date,desc:`${desc} (${km}km)`,total,cat:'Travel & transport',idNo});
+    updateExpenseLog();
+    document.getElementById('mil-km').value='';
+    document.getElementById('mil-desc').value='';
+    document.getElementById('mileage-form').classList.remove('visible');
+    showExpTab('log');
+  }catch(e){showToast('Error: '+e.message,6000);console.error(e);}
+}
+
+function updateExpenseLog(){
+  const list=document.getElementById('exp-log-list');
+  if(!expenseLog.length){
+    list.innerHTML='<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">No entries logged this session</div>';
+    return;
+  }
+  list.innerHTML=expenseLog.map(e=>`
+    <div class="exp-log-item">
+      <div class="exp-log-date">${e.date}</div>
+      <div class="exp-log-desc">
+        <div>${e.desc}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${e.idNo}</div>
+      </div>
+      <div class="exp-log-cat">${e.cat}</div>
+      <div class="exp-log-amount">$${parseFloat(e.total).toFixed(2)}</div>
+    </div>`).join('');
+}
+
+// Profile panel auto-fill handled in prefillCharterFromProfile()
+
+
+
+/* ── PM TOOLS ── */
+let raciData={tasks:[],roles:[],matrix:{}};
+let charterData={};
+
+function showToolsTab(tab){
+  document.querySelectorAll('.tool-view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tools-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tools-'+tab).classList.add('active');
+  document.getElementById('toolstab-'+tab).classList.add('active');
+}
+
+// ── RACI ──
+async function generateRaci(){
+  const projectName=document.getElementById('raci-project-name').value.trim();
+  const description=document.getElementById('raci-description').value.trim();
+  const rolesRaw=document.getElementById('raci-roles').value.trim();
+  if(!description){showToast('Please describe the project first');return;}
+
+  const btn=document.getElementById('raci-gen-btn');
+  btn.disabled=true;
+  const statusEl=document.getElementById('raci-status');
+  const dotEl=document.getElementById('raci-dot');
+  const statusText=document.getElementById('raci-status-text');
+  statusEl.style.display='flex';
+  dotEl.className='status-dot generating';
+  statusText.textContent='Generating RACI matrix…';
+
+  const rolesHint=rolesRaw?`Team roles provided: ${rolesRaw}`:'Suggest appropriate roles based on the project type.';
+
+  try{
+    const prompt=`You are an expert project manager with deep PMBOK knowledge. Generate a comprehensive RACI matrix for this project.
+
+Project: ${projectName||'Project'}
+Description: ${description}
+${rolesHint}
+
+Respond ONLY with a valid JSON object, no markdown, no other text:
+{
+  "roles": ["Role1","Role2","Role3",...],
+  "tasks": [
+    {"task":"Task name","category":"Phase or category","assignments":{"Role1":"R","Role2":"A","Role3":"C"}}
+  ]
+}
+
+Rules:
+- Include 15-25 tasks covering the full project lifecycle (initiation, planning, execution, monitoring, closure)
+- Group tasks under meaningful categories/phases
+- Each task must have exactly ONE Accountable (A) and at least one Responsible (R)
+- Use R=Responsible, A=Accountable, C=Consulted, I=Informed — omit the key entirely if no assignment
+- Roles should reflect the ones provided or suggest 4-7 appropriate roles if none given
+- Be specific and actionable — real PM deliverables, not vague tasks`;
+
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const raw=data.content?.map(b=>b.text||'').join('')||'{}';
+    let parsed={};
+    try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}
+    catch(e){showToast('Could not parse AI response — try again');return;}
+
+    raciData.roles=parsed.roles||[];
+    raciData.tasks=parsed.tasks||[];
+    raciData.matrix={};
+    raciData.tasks.forEach((t,ti)=>{
+      raciData.matrix[ti]={};
+      raciData.roles.forEach(r=>{raciData.matrix[ti][r]=t.assignments?.[r]||'';});
+    });
+
+    renderRaciTable();
+    document.getElementById('raci-result').style.display='block';
+    dotEl.className='status-dot done';
+    statusText.textContent=`${raciData.tasks.length} tasks × ${raciData.roles.length} roles generated`;
+  }catch(e){
+    showToast('Generation failed — check connection');
+    statusEl.style.display='none';
+    console.error(e);
+  }finally{btn.disabled=false;}
+}
+
+function renderRaciTable(){
+  const table=document.getElementById('raci-table');
+  const roles=raciData.roles;
+  const tasks=raciData.tasks;
+  let html=`<thead><tr><th style="min-width:200px;">Task</th><th style="min-width:100px;color:var(--text3);">Category</th>`;
+  roles.forEach(r=>{html+=`<th class="role-col">${r}</th>`;});
+  html+=`</tr></thead><tbody>`;
+  tasks.forEach((t,ti)=>{
+    html+=`<tr><td style="font-weight:500;">${t.task}</td><td style="color:var(--text3);font-size:11px;">${t.category||''}</td>`;
+    roles.forEach(r=>{
+      const val=raciData.matrix[ti]?.[r]||'';
+      html+=`<td class="raci-cell"><span class="raci-badge ${val?'raci-'+val:'raci-empty'}" onclick="cycleRaci(${ti},'${r}')" title="Click to change">${val||'·'}</span></td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody>`;
+  table.innerHTML=html;
+}
+
+function cycleRaci(taskIdx,role){
+  const order=['','R','A','C','I'];
+  const current=raciData.matrix[taskIdx]?.[role]||'';
+  const next=order[(order.indexOf(current)+1)%order.length];
+  if(!raciData.matrix[taskIdx])raciData.matrix[taskIdx]={};
+  raciData.matrix[taskIdx][role]=next;
+  renderRaciTable();
+}
+
+function addRaciRow(){
+  const taskName=prompt('Task name:');
+  if(!taskName)return;
+  const newIdx=raciData.tasks.length;
+  raciData.tasks.push({task:taskName,category:'Custom'});
+  raciData.matrix[newIdx]={};
+  raciData.roles.forEach(r=>{raciData.matrix[newIdx][r]='';});
+  renderRaciTable();
+}
+
+function addRaciCol(){
+  const roleName=prompt('Role name:');
+  if(!roleName)return;
+  raciData.roles.push(roleName);
+  raciData.tasks.forEach((_,ti)=>{raciData.matrix[ti][roleName]='';});
+  renderRaciTable();
+}
+
+async function exportRaciToExcel(){
+  if(!raciData.tasks.length){showToast('Generate a RACI matrix first');return;}
+  showToast('Exporting to OneDrive…');
+  const projectName=document.getElementById('raci-project-name').value.trim()||'RACI Matrix';
+  const fileName=`${projectName} - RACI Matrix.xlsx`;
+
+  // Build CSV content for Excel-compatible upload
+  const rows=[];
+  const header=['Task','Category',...raciData.roles];
+  rows.push(header);
+  raciData.tasks.forEach((t,ti)=>{
+    const row=[t.task,t.category||''];
+    raciData.roles.forEach(r=>{row.push(raciData.matrix[ti]?.[r]||'');});
+    rows.push(row);
+  });
+
+  // Convert to CSV
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csvFileName=`${projectName} - RACI Matrix.csv`;
+
+  try{
+    const token=await getToken();
+    const encoder=new TextEncoder();
+    const bytes=encoder.encode(csv);
+    const res=await fetch(`${GRAPH}/me/drive/root:/PM Tools/${csvFileName}:/content`,{
+      method:'PUT',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'text/csv'},
+      body:bytes
+    });
+    if(res.ok){showToast(`Saved to OneDrive: PM Tools/${csvFileName}`);}
+    else{showToast('Export failed — check OneDrive permissions');}
+  }catch(e){showToast('Export failed: '+e.message);console.error(e);}
+}
+
+// ── PROJECT CHARTER ──
+const CHARTER_SECTIONS=[
+  {key:'purpose',label:'Project purpose & business need'},
+  {key:'objectives',label:'Project objectives (SMART)'},
+  {key:'scope',label:'Project scope'},
+  {key:'out_of_scope',label:'Out of scope'},
+  {key:'deliverables',label:'Key deliverables'},
+  {key:'milestones',label:'High-level milestones'},
+  {key:'budget',label:'Budget summary'},
+  {key:'team',label:'Project team & roles'},
+  {key:'stakeholders',label:'Stakeholder register'},
+  {key:'risks',label:'High-level risks & assumptions'},
+  {key:'constraints',label:'Constraints & dependencies'},
+  {key:'success_criteria',label:'Success criteria'},
+  {key:'approval',label:'Approvals & sign-off'},
+];
+
+async function generateCharter(){
+  const name=document.getElementById('ch-name').value.trim();
+  const sponsor=document.getElementById('ch-sponsor').value.trim();
+  const start=document.getElementById('ch-start').value;
+  const end=document.getElementById('ch-end').value;
+  const budget=document.getElementById('ch-budget').value.trim();
+  const pm=document.getElementById('ch-pm').value.trim()||profile.name||'Project Manager';
+  const description=document.getElementById('ch-description').value.trim();
+  const deliverables=document.getElementById('ch-deliverables').value.trim();
+  const stakeholders=document.getElementById('ch-stakeholders').value.trim()||profile.stakeholders||'';
+
+  if(!name||!description){showToast('Please enter at least a project name and description');return;}
+
+  const btn=document.getElementById('charter-gen-btn');
+  btn.disabled=true;
+  const statusEl=document.getElementById('charter-status');
+  const dotEl=document.getElementById('charter-dot');
+  const statusText=document.getElementById('charter-status-text');
+  statusEl.style.display='flex';
+  dotEl.className='status-dot generating';
+  statusText.textContent='Generating PMBOK charter…';
+
+  const prompt=`You are an expert project manager. Generate a complete PMBOK-standard project charter.
+
+Project name: ${name}
+Project Manager: ${pm}
+Sponsor: ${sponsor||'TBD'}
+Start: ${start||'TBD'} | End: ${end||'TBD'}
+Budget: ${budget||'TBD'}
+Description: ${description}
+Key deliverables: ${deliverables||'TBD'}
+Stakeholders: ${stakeholders||'TBD'}
+Company: ${profile.company||''}
+
+Respond ONLY with a valid JSON object. Each value should be 2-5 sentences or bullet points. No markdown backticks:
+{
+  "purpose":"...",
+  "objectives":"...",
+  "scope":"...",
+  "out_of_scope":"...",
+  "deliverables":"...",
+  "milestones":"...",
+  "budget":"...",
+  "team":"...",
+  "stakeholders":"...",
+  "risks":"...",
+  "constraints":"...",
+  "success_criteria":"...",
+  "approval":"Prepared by: ${pm}\\nSponsor: ${sponsor||'TBD'}\\nDate: ${new Date().toLocaleDateString('en-CA')}"
+}
+
+Follow PMBOK best practices. Be specific and professional. Use the provided details throughout.`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const raw=data.content?.map(b=>b.text||'').join('')||'{}';
+    try{charterData=JSON.parse(raw.replace(/```json|```/g,'').trim());}
+    catch(e){showToast('Could not parse charter — try again');return;}
+    charterData._meta={name,pm,sponsor,start,end,budget};
+    renderCharterSections();
+    document.getElementById('charter-result').style.display='block';
+    dotEl.className='status-dot done';
+    statusText.textContent='Charter generated — all sections are editable';
+  }catch(e){
+    showToast('Generation failed');
+    statusEl.style.display='none';
+    console.error(e);
+  }finally{btn.disabled=false;}
+}
+
+function renderCharterSections(){
+  const container=document.getElementById('charter-sections');
+  container.innerHTML='';
+  // Header block
+  const meta=charterData._meta||{};
+  const headerHtml=`<div class="charter-section-block">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+      <div><span style="color:var(--text3);">Project:</span> <strong>${meta.name||''}</strong></div>
+      <div><span style="color:var(--text3);">PM:</span> ${meta.pm||''}</div>
+      <div><span style="color:var(--text3);">Sponsor:</span> ${meta.sponsor||'TBD'}</div>
+      <div><span style="color:var(--text3);">Budget:</span> ${meta.budget||'TBD'}</div>
+      <div><span style="color:var(--text3);">Start:</span> ${meta.start||'TBD'}</div>
+      <div><span style="color:var(--text3);">End:</span> ${meta.end||'TBD'}</div>
+    </div>
+  </div>`;
+  container.innerHTML=headerHtml;
+  CHARTER_SECTIONS.forEach(s=>{
+    const block=document.createElement('div');
+    block.className='charter-section-block';
+    block.innerHTML=`<div class="charter-section-label">${s.label}</div>
+      <textarea class="charter-section-content" id="charter-sec-${s.key}" rows="4">${charterData[s.key]||''}</textarea>`;
+    container.appendChild(block);
+  });
+}
+
+async function saveCharterToOneDrive(){
+  if(!charterData._meta){showToast('Generate a charter first');return;}
+  const meta=charterData._meta||{};
+  const btn=document.querySelector('[onclick="saveCharterToOneDrive()"]');
+  if(btn){btn.textContent='Building document…';btn.disabled=true;}
+  showToast('Building Word document…');
+
+  try{
+    // Dynamically load docx.js from CDN
+    if(!window.docx){
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js';
+        s.onload=resolve;s.onerror=reject;
+        document.head.appendChild(s);
+      });
+    }
+    const {Document,Packer,Paragraph,TextRun,HeadingLevel,AlignmentType,BorderStyle,Table,TableRow,TableCell,WidthType,ShadingType}=window.docx;
+
+    const children=[];
+
+    // ── Title page ──
+    children.push(new Paragraph({
+      text:meta.name||'Project Charter',
+      heading:HeadingLevel.TITLE,
+      alignment:AlignmentType.CENTER,
+      spacing:{before:800,after:200}
+    }));
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      spacing:{after:120},
+      children:[new TextRun({text:'PROJECT CHARTER',bold:true,size:28,color:'888780'})]
+    }));
+
+    // Meta table
+    const metaRows=[
+      ['Project Manager',meta.pm||''],
+      ['Project Sponsor',meta.sponsor||'TBD'],
+      ['Start Date',meta.start||'TBD'],
+      ['End Date',meta.end||'TBD'],
+      ['Budget',meta.budget||'TBD'],
+      ['Date Prepared',new Date().toLocaleDateString('en-CA')],
+      ['Company',profile.company||''],
+    ];
+    children.push(new Table({
+      width:{size:100,type:WidthType.PERCENTAGE},
+      rows:metaRows.map(([label,value])=>new TableRow({children:[
+        new TableCell({
+          width:{size:30,type:WidthType.PERCENTAGE},
+          shading:{type:ShadingType.CLEAR,color:'auto',fill:'1e1e1e'},
+          children:[new Paragraph({children:[new TextRun({text:label,bold:true,size:20})]})]
+        }),
+        new TableCell({
+          width:{size:70,type:WidthType.PERCENTAGE},
+          children:[new Paragraph({children:[new TextRun({text:value,size:20})]})]
+        })
+      ]}))
+    }));
+    children.push(new Paragraph({text:'',spacing:{after:400}}));
+
+    // ── Charter sections ──
+    CHARTER_SECTIONS.forEach(s=>{
+      const el=document.getElementById('charter-sec-'+s.key);
+      const text=el?el.value.trim():(charterData[s.key]||'');
+
+      // Section heading
+      children.push(new Paragraph({
+        text:s.label,
+        heading:HeadingLevel.HEADING_2,
+        spacing:{before:360,after:120},
+        border:{bottom:{style:BorderStyle.SINGLE,size:4,color:'c8b87a'}}
+      }));
+
+      // Section content — split on newlines for proper paragraphs
+      const lines=text.split('\n').filter(l=>l.trim());
+      if(lines.length===0){
+        children.push(new Paragraph({children:[new TextRun({text:'',size:22})],spacing:{after:160}}));
+      } else {
+        lines.forEach(line=>{
+          const isBullet=line.trim().startsWith('-')||line.trim().startsWith('•');
+          const cleanLine=line.replace(/^[-•]\s*/,'').trim();
+          children.push(new Paragraph({
+            text:cleanLine,
+            bullet:isBullet?{level:0}:undefined,
+            spacing:{after:120},
+            children:isBullet?undefined:[new TextRun({text:cleanLine,size:22})]
+          }));
+        });
+      }
+    });
+
+    // ── Build & upload ──
+    const doc=new Document({sections:[{properties:{},children}]});
+    const blob=await Packer.toBlob(doc);
+    const arrayBuf=await blob.arrayBuffer();
+    const docxFileName=`${(meta.name||'Project').replace(/[\/\\:*?"<>|]/g,'-')} - Charter.docx`;
+    const token=await getToken();
+
+    const uploadRes=await fetch(`${GRAPH}/me/drive/root:/PM Tools/${docxFileName}:/content`,{
+      method:'PUT',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
+      body:arrayBuf
+    });
+
+    if(!uploadRes.ok)throw new Error('Upload failed: '+uploadRes.status);
+    const fileData=await uploadRes.json();
+
+    showToast('Saved! Opening in Word…',4000);
+
+    // Get the Word Online URL and open it
+    let openUrl=null;
+    try{
+      const itemRes=await fetch(`${GRAPH}/me/drive/items/${fileData.id}`,{
+        headers:{Authorization:'Bearer '+token}
+      });
+      const itemData=await itemRes.json();
+      openUrl=itemData.webUrl||null;
+    }catch(e){}
+
+    if(openUrl){
+      // Convert OneDrive share URL to Word Online edit URL
+      const wordUrl=openUrl.replace('/_layouts/15/','/_layouts/15/').includes('?')
+        ? openUrl+'&action=default'
+        : openUrl+'?action=default';
+      setTimeout(()=>window.open(wordUrl,'_blank'),800);
+    }
+
+  }catch(e){
+    showToast('Error: '+e.message,6000);
+    console.error(e);
+  }finally{
+    if(btn){btn.textContent='Save & Open in Word';btn.disabled=false;}
+  }
+}
+
+// Pre-fill charter PM field from profile on panel open
+document.addEventListener('DOMContentLoaded',()=>{
+  const catSel=document.getElementById('ex-category');
+  const descInp=document.getElementById('ex-desc');
+  if(catSel)catSel.addEventListener('change',()=>{if(document.getElementById('receipt-preview').classList.contains('visible'))refreshIdPreview();});
+  if(descInp)descInp.addEventListener('blur',()=>{if(document.getElementById('receipt-preview').classList.contains('visible'))refreshIdPreview();});
+});
+
+function prefillCharterFromProfile(){
+  const pmField=document.getElementById('ch-pm');
+  const stakeholderField=document.getElementById('ch-stakeholders');
+  if(pmField&&!pmField.value&&profile.name)pmField.value=profile.name;
+  if(stakeholderField&&!stakeholderField.value&&profile.stakeholders)stakeholderField.value=profile.stakeholders;
+}
+</script>
+</body>
+</html>
