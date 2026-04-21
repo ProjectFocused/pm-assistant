@@ -671,6 +671,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
               <div class="settings-field full"><label class="settings-label">Key stakeholders &amp; team</label><textarea class="settings-textarea" id="s-stakeholders" placeholder="Names, roles, and context for your key contacts"></textarea></div>
               <div class="settings-field full"><label class="settings-label">PM methodology / process notes</label><textarea class="settings-textarea" id="s-pmcontext" placeholder="PMBOK version, sprint cadence, escalation paths, org conventions…"></textarea></div>
               <div class="settings-field full" style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:4px;">
+                <div style="font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;">API Settings</div>
+              </div>
+              <div class="settings-field full"><label class="settings-label">Anthropic API Key</label><input class="settings-input" id="s-anthropic" type="password" placeholder="sk-ant-..." /><div class="settings-hint">Update if your key changes. Stored only in your browser.</div></div>
+              <div class="settings-field full" style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:4px;">
                 <div style="font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;">Expense settings</div>
               </div>
               <div class="settings-field"><label class="settings-label">Excel filename (exact)</label><input class="settings-input" id="s-expfile" placeholder="Expenses for the Company.xlsx" /></div>
@@ -928,6 +932,9 @@ function populateSettings(){
   set('s-expsheet',p.expSheet||new Date().getFullYear().toString());
   set('s-expfolder',p.expFolder||'Receipts');
   set('s-hstrate',p.hstRate||'13');
+  // Show masked API key if saved
+  const apiField=document.getElementById('s-anthropic');
+  if(apiField&&cfg.anthropic)apiField.placeholder='sk-ant-... (saved)';
 }
 
 function saveSettings(){
@@ -949,8 +956,18 @@ function saveSettings(){
   };
   profile=updated;
   localStorage.setItem('pm_profile',JSON.stringify(profile));
+  // Update Anthropic key if changed
+  const newKey=document.getElementById('s-anthropic').value.trim();
+  if(newKey&&newKey.startsWith('sk-ant-')){
+    cfg.anthropic=newKey;
+    localStorage.setItem('pm_cfg',JSON.stringify(cfg));
+    document.getElementById('s-anthropic').value='';
+    document.getElementById('s-anthropic').placeholder='sk-ant-... (saved)';
+    showToast('Profile & API key saved');
+  } else {
+    showToast('Profile saved');
+  }
   document.getElementById('user-pill').textContent=profile.name||'Me';
-  showToast('Profile saved');
 }
 
 function signOut(){
