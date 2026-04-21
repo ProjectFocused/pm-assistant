@@ -823,7 +823,7 @@ function buildSystemPrompt(){
 
 async function callClaude(msg,useHistory=false){
   const messages=useHistory?[...chatHistory,{role:'user',content:msg}]:[{role:'user',content:msg}];
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildSystemPrompt(),messages})});
+  const res=await fetch('https://pm-proxy.dsanta.workers.dev',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildSystemPrompt(),messages})});
   const data=await res.json();
   return data.content?.map(b=>b.text||'').join('')||'Sorry, something went wrong.';
 }
@@ -1159,7 +1159,7 @@ async function processChat(msg){
       }catch(e){}
     }
     const messages=[...chatHistory.slice(0,-1),{role:'user',content:context}];
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildSystemPrompt(),messages})});
+    const res=await fetch('https://pm-proxy.dsanta.workers.dev',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildSystemPrompt(),messages})});
     const data=await res.json();
     const reply=data.content?.map(b=>b.text||'').join('')||'Sorry, something went wrong.';
     removeTyping();
@@ -1239,7 +1239,7 @@ function processReceiptFile(file){
 
 async function extractReceiptData(base64,mediaType){
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://pm-proxy.dsanta.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},
       body:JSON.stringify({
@@ -1594,7 +1594,7 @@ Rules:
 - Roles should reflect the ones provided or suggest 4-7 appropriate roles if none given
 - Be specific and actionable — real PM deliverables, not vague tasks`;
 
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://pm-proxy.dsanta.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:prompt}]})
@@ -1775,7 +1775,7 @@ Respond ONLY with a valid JSON object. Each value should be 2-5 sentences or bul
 Follow PMBOK best practices. Be specific and professional. Use the provided details throughout.`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://pm-proxy.dsanta.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:prompt}]})
