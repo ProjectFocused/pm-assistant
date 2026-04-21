@@ -798,26 +798,6 @@ async function getToken(){
 
 async function graphGet(ep){const t=await getToken();const r=await fetch(GRAPH+ep,{headers:{Authorization:'Bearer '+t}});if(!r.ok)throw new Error('Graph '+r.status);return r.json();}
 async function graphPost(ep,body){const t=await getToken();const r=await fetch(GRAPH+ep,{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('Graph '+r.status);return r.json();}
-  const p=profile;
-  let s=`You are an expert AI assistant for a project manager. You have deep knowledge of PMBOK (6th and 7th editions), PMI standards, Agile, Scrum, PRINCE2, risk management, stakeholder engagement, earned value management (EVM), WBS, RACI matrices, change control, and all aspects of professional project management.`;
-  if(p.name)s+=`\n\nYou are assisting ${p.name}`;
-  if(p.jobTitle)s+=`, ${p.jobTitle}`;
-  if(p.company)s+=` at ${p.company}`;
-  s+='.';
-  if(p.projects)s+=`\n\nCurrent active projects: ${p.projects}`;
-  if(p.stakeholders)s+=`\n\nKey stakeholders and team members: ${p.stakeholders}`;
-  if(p.pmContext)s+=`\n\nOrganizational / process context: ${p.pmContext}`;
-  if(styleGuide){
-    s+=`\n\nWRITING STYLE GUIDE — always follow this when drafting emails or documents:\n${styleGuide}`;
-  } else {
-    const tones={'professional':'Write in a formal, precise, professional tone.','friendly-professional':'Write in a warm but polished tone — professional yet approachable.','direct':'Write concisely and directly. No filler. Get to the point.','collaborative':'Use inclusive, team-oriented language. Emphasize collaboration and shared ownership.'};
-    s+=`\n\nTone: ${tones[p.tone]||tones['professional']}`;
-  }
-  if(p.signOff)s+=`\n\nAlways sign off emails with: ${p.signOff}`;
-  if(p.name)s+=` ${p.name}`;
-  s+=`\n\nBe concise, practical, and action-oriented. When drafting emails, write them complete and ready to send. Draw on PMBOK best practices when relevant.`;
-  return s;
-}
 
 function buildSystemPrompt(){
   const p=profile;
