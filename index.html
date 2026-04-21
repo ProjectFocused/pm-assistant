@@ -1157,11 +1157,44 @@ async function processChat(msg){
   const lower=msg.toLowerCase();
   try{
     // ── Detect meeting RESPONSE intent (accept/decline/tentative) ──
+    const cancelIntent=/(cancel|delete|remove).*(meeting|event|appointment|call)/i.test(msg)||/(meeting|event|appointment|call).*(cancel|delete|remove)/i.test(msg);
     const declineIntent=/(decline|reject|refuse|can't make|cannot make|won't make|not attending|skip).*(meeting|invite|invitation|event|call)/i.test(msg)||/(meeting|invite|invitation|event|call).*(decline|reject|refuse)/i.test(msg);
     const acceptIntent=/(accept|confirm|attending|i'll attend|i will attend|going to).*(meeting|invite|invitation|event|call)/i.test(msg)||/(meeting|invite|invitation|event|call).*(accept|confirm)/i.test(msg);
     const tentativeIntent=/(tentative|maybe|might|possibly|unsure).*(meeting|invite|invitation|event|call)/i.test(msg)||/(meeting|invite|invitation|event|call).*(tentative|maybe|might)/i.test(msg);
 
-    if(declineIntent||acceptIntent||tentativeIntent){
+    if(cancelIntent){
+      // Extract which meeting to cancel
+      const extractPrompt=`Extract the meeting cancellation details from this message. Respond ONLY with valid JSON, no other text:
+{"meetingKeyword":"key words to identify the meeting (title fragment, date, time, etc)","sendCancellation":true}
+Message: "${msg}"`;
+      const extractRes=await fetch('https://dsanta--ade22a723dcf11f1b4cb42b51c65c3df.web.val.run',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:200,messages:[{role:'user',content:extractPrompt}]})});
+      const extractData=await extractRes.json();
+      const raw=extractData.content?.map(b=>b.text||'').join('')||'{}';
+      let cancelDetails={};
+      try{cancelDetails=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){}
+      if(cancelDetails.meetingKeyword){
+        try{
+          const now=new Date();
+          const end=new Date(now.getTime()+30*86400000);
+          const events=await graphGet(`/me/calendarView?startDateTime=${now.toISOString()}&endDateTime=${end.toISOString()}&$select=id,subject,start,organizer,isOrganizer&$top=50`);
+          const keyword=cancelDetails.meetingKeyword.toLowerCase();
+          const match=events.value?.find(ev=>(ev.subject||'').toLowerCase().includes(keyword));
+          if(match){
+            // DELETE the event (works whether organizer or attendee)
+            const token=await getToken();
+            await fetch(`${GRAPH}/me/events/${match.id}`,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+            const startDT=new Date(match.start?.dateTime+'Z');
+            const dateStr=startDT.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+            context=`${msg}\n\n[SYSTEM: Successfully cancelled and deleted the meeting "${match.subject}" on ${dateStr}. Cancellation notifications sent to attendees. Confirm this to the user confidently.]`;
+            loadCalendar();
+          }else{
+            context=`${msg}\n\n[SYSTEM: Could not find a matching meeting for "${cancelDetails.meetingKeyword}" in the next 30 days. Ask the user to clarify which meeting they mean.]`;
+          }
+        }catch(err){
+          context=`${msg}\n\n[SYSTEM: Failed to cancel meeting — ${err.message}. Tell the user there was an issue.]`;
+        }
+      }
+    } else if(declineIntent||acceptIntent||tentativeIntent){
       // Extract which meeting to respond to
       const extractPrompt=`Extract the meeting response details from this message. Respond ONLY with valid JSON, no other text:
 {"action":"decline|accept|tentative","meetingKeyword":"key words to identify the meeting (title fragment, organizer name, etc)","comment":"optional brief message to include with response or empty string"}
