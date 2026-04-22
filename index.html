@@ -1156,89 +1156,95 @@ async function processChat(msg){
   let context=msg;
   const lower=msg.toLowerCase();
   try{
-    // ── Detect meeting RESPONSE intent (accept/decline/tentative) ──
+    // ── Detect meeting RESPONSE intent (accept/decline/tentative/cancel) ──
     const cancelIntent=/(cancel|delete|remove).*(meeting|event|appointment|call)/i.test(msg)||/(meeting|event|appointment|call).*(cancel|delete|remove)/i.test(msg);
     const declineIntent=/(decline|reject|refuse|can't make|cannot make|won't make|not attending|skip).*(meeting|invite|invitation|event|call)/i.test(msg)||/(meeting|invite|invitation|event|call).*(decline|reject|refuse)/i.test(msg);
     const acceptIntent=/(accept|confirm|attending|i'll attend|i will attend|going to).*(meeting|invite|invitation|event|call)/i.test(msg)||/(meeting|invite|invitation|event|call).*(accept|confirm)/i.test(msg);
     const tentativeIntent=/(tentative|maybe|might|possibly|unsure).*(meeting|invite|invitation|event|call)/i.test(msg)||/(meeting|invite|invitation|event|call).*(tentative|maybe|might)/i.test(msg);
 
+    // ── Helper: fetch all upcoming events ──
+    async function fetchUpcomingEvents(){
+      const now=new Date();
+      const end=new Date(now.getTime()+30*86400000);
+      const data=await graphGet(`/me/calendarView?startDateTime=${now.toISOString()}&endDateTime=${end.toISOString()}&$select=id,subject,start,end,organizer,isOrganizer,responseStatus&$top=100`);
+      return data.value||[];
+    }
+
+    // ── Helper: fuzzy find event by keywords ──
+    function fuzzyFindEvent(events, keyword){
+      const kw=keyword.toLowerCase().trim();
+      const words=kw.split(/\s+/).filter(w=>w.length>2);
+      // Exact match first
+      let match=events.find(ev=>(ev.subject||'').toLowerCase()===kw);
+      if(match)return match;
+      // Contains full keyword
+      match=events.find(ev=>(ev.subject||'').toLowerCase().includes(kw));
+      if(match)return match;
+      // Match any significant word
+      match=events.find(ev=>{
+        const title=(ev.subject||'').toLowerCase();
+        return words.some(w=>title.includes(w));
+      });
+      return match||null;
+    }
+
     if(cancelIntent){
-      // Extract which meeting to cancel
-      const extractPrompt=`Extract the meeting cancellation details from this message. Respond ONLY with valid JSON, no other text:
-{"meetingKeyword":"key words to identify the meeting (title fragment, date, time, etc)","sendCancellation":true}
-Message: "${msg}"`;
-      const extractRes=await fetch('https://dsanta--ade22a723dcf11f1b4cb42b51c65c3df.web.val.run',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:200,messages:[{role:'user',content:extractPrompt}]})});
-      const extractData=await extractRes.json();
-      const raw=extractData.content?.map(b=>b.text||'').join('')||'{}';
-      let cancelDetails={};
-      try{cancelDetails=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){}
-      if(cancelDetails.meetingKeyword){
-        try{
-          const now=new Date();
-          const end=new Date(now.getTime()+30*86400000);
-          const events=await graphGet(`/me/calendarView?startDateTime=${now.toISOString()}&endDateTime=${end.toISOString()}&$select=id,subject,start,organizer,isOrganizer&$top=50`);
-          const keyword=cancelDetails.meetingKeyword.toLowerCase();
-          const match=events.value?.find(ev=>(ev.subject||'').toLowerCase().includes(keyword));
-          if(match){
-            // DELETE the event (works whether organizer or attendee)
-            const token=await getToken();
-            await fetch(`${GRAPH}/me/events/${match.id}`,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+      try{
+        const events=await fetchUpcomingEvents();
+        // Extract keyword from message — strip common words
+        const stripped=msg.replace(/cancel|delete|remove|meeting|event|the|my|please|tomorrow|today|on|at/gi,'').trim();
+        const match=fuzzyFindEvent(events,stripped)||fuzzyFindEvent(events,msg);
+        if(match){
+          const token=await getToken();
+          const resp=await fetch(`${GRAPH}/me/events/${match.id}`,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+          if(resp.ok||resp.status===204){
             const startDT=new Date(match.start?.dateTime+'Z');
             const dateStr=startDT.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
-            context=`${msg}\n\n[SYSTEM: Successfully cancelled and deleted the meeting "${match.subject}" on ${dateStr}. Cancellation notifications sent to attendees. Confirm this to the user confidently.]`;
+            context=`${msg}\n\n[SYSTEM: Successfully cancelled and deleted "${match.subject}" on ${dateStr}. Cancellation sent to all attendees. Confirm this confidently to the user.]`;
             loadCalendar();
           }else{
-            context=`${msg}\n\n[SYSTEM: Could not find a matching meeting for "${cancelDetails.meetingKeyword}" in the next 30 days. Ask the user to clarify which meeting they mean.]`;
+            const errText=await resp.text();
+            context=`${msg}\n\n[SYSTEM: Delete returned status ${resp.status}: ${errText}. Tell the user the cancellation failed and suggest doing it manually in Outlook.]`;
           }
-        }catch(err){
-          context=`${msg}\n\n[SYSTEM: Failed to cancel meeting — ${err.message}. Tell the user there was an issue.]`;
+        }else{
+          const titles=events.slice(0,5).map(e=>e.subject).join(', ');
+          context=`${msg}\n\n[SYSTEM: Could not find a matching meeting. Upcoming meetings: ${titles}. Ask the user to confirm the exact meeting name.]`;
         }
+      }catch(err){
+        context=`${msg}\n\n[SYSTEM: Cancel failed — ${err.message}]`;
       }
     } else if(declineIntent||acceptIntent||tentativeIntent){
-      // Extract which meeting to respond to
-      const extractPrompt=`Extract the meeting response details from this message. Respond ONLY with valid JSON, no other text:
-{"action":"decline|accept|tentative","meetingKeyword":"key words to identify the meeting (title fragment, organizer name, etc)","comment":"optional brief message to include with response or empty string"}
-Message: "${msg}"`;
-      const extractRes=await fetch('https://dsanta--ade22a723dcf11f1b4cb42b51c65c3df.web.val.run',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:200,messages:[{role:'user',content:extractPrompt}]})});
-      const extractData=await extractRes.json();
-      const raw=extractData.content?.map(b=>b.text||'').join('')||'{}';
-      let responseDetails={};
-      try{responseDetails=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){}
-
-      if(responseDetails.action&&responseDetails.meetingKeyword){
-        try{
-          // Search calendar for matching event with pending response
-          const now=new Date();
-          const end=new Date(now.getTime()+30*86400000);
-          const events=await graphGet(`/me/calendarView?startDateTime=${now.toISOString()}&endDateTime=${end.toISOString()}&$select=id,subject,start,organizer,responseStatus&$top=50`);
-          const keyword=responseDetails.meetingKeyword.toLowerCase();
-          const match=events.value?.find(ev=>(ev.subject||'').toLowerCase().includes(keyword)||(ev.organizer?.emailAddress?.name||'').toLowerCase().includes(keyword));
-
-          if(match){
-            const action=responseDetails.action;
-            const endpoint=`/me/events/${match.id}/${action==='decline'?'decline':action==='accept'?'accept':'tentativelyAccept'}`;
-            const body={sendResponse:true};
-            if(responseDetails.comment){
-              body.comment=responseDetails.comment;
-            } else {
-              // Generate a polite message in user's style
-              const stylePrompt=`Write a very brief, polite one-sentence ${action} message for a meeting invite in my writing style. Just the message text, nothing else.`;
-              const styleRes=await fetch('https://dsanta--ade22a723dcf11f1b4cb42b51c65c3df.web.val.run',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:100,system:buildSystemPrompt(),messages:[{role:'user',content:stylePrompt}]})});
-              const styleData=await styleRes.json();
-              body.comment=styleData.content?.map(b=>b.text||'').join('')||'';
-            }
-            await graphPost(endpoint,body);
-            const actionWord=action==='decline'?'Declined':action==='accept'?'Accepted':'Tentatively accepted';
+      try{
+        const events=await fetchUpcomingEvents();
+        const action=declineIntent?'decline':acceptIntent?'accept':'tentative';
+        const stripped=msg.replace(/decline|accept|tentative|meeting|invite|the|my|please|tomorrow|today|on|at/gi,'').trim();
+        const match=fuzzyFindEvent(events,stripped)||fuzzyFindEvent(events,msg);
+        if(match){
+          const endpoint=`/me/events/${match.id}/${action==='decline'?'decline':action==='accept'?'accept':'tentativelyAccept'}`;
+          const stylePrompt=`Write a brief, polite one-sentence ${action} message for a meeting invite. Just the message, nothing else.`;
+          let comment='';
+          try{
+            const styleRes=await fetch('https://dsanta--ade22a723dcf11f1b4cb42b51c65c3df.web.val.run',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-client-side-api-key-allow':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:80,system:buildSystemPrompt(),messages:[{role:'user',content:stylePrompt}]})});
+            const styleData=await styleRes.json();
+            comment=styleData.content?.map(b=>b.text||'').join('')||'';
+          }catch(e){}
+          const resp=await fetch(`${GRAPH}/me/events/${match.id}/${action==='decline'?'decline':action==='accept'?'accept':'tentativelyAccept'}`,{method:'POST',headers:{Authorization:'Bearer '+await getToken(),'Content-Type':'application/json'},body:JSON.stringify({sendResponse:true,comment})});
+          if(resp.ok||resp.status===202||resp.status===204){
             const startDT=new Date(match.start?.dateTime+'Z');
             const dateStr=startDT.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
-            context=`${msg}\n\n[SYSTEM: Successfully ${actionWord.toLowerCase()} the meeting "${match.subject}" on ${dateStr}. A response was sent to the organizer. Confirm this to the user confidently.]`;
+            const actionWord=action==='decline'?'Declined':action==='accept'?'Accepted':'Tentatively accepted';
+            context=`${msg}\n\n[SYSTEM: ${actionWord} "${match.subject}" on ${dateStr}. Response sent to organizer. Confirm this confidently to the user.]`;
             loadCalendar();
-          } else {
-            context=`${msg}\n\n[SYSTEM: Could not find a matching meeting for "${responseDetails.meetingKeyword}" in the next 30 days. Ask the user to clarify which meeting they mean or suggest they use the Calendar tab.]`;
+          }else{
+            const errText=await resp.text();
+            context=`${msg}\n\n[SYSTEM: ${action} returned status ${resp.status}: ${errText}. Tell the user it failed.]`;
           }
-        }catch(err){
-          context=`${msg}\n\n[SYSTEM: Failed to respond to meeting — ${err.message}. Tell the user there was an issue.]`;
+        }else{
+          const titles=events.slice(0,5).map(e=>e.subject).join(', ');
+          context=`${msg}\n\n[SYSTEM: Could not find a matching meeting. Upcoming meetings: ${titles}. Ask the user to confirm the exact meeting name.]`;
         }
+      }catch(err){
+        context=`${msg}\n\n[SYSTEM: Action failed — ${err.message}]`;
       }
     }
     // ── Detect calendar CREATE intent ──
